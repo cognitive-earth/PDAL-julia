@@ -1,0 +1,10 @@
+build/*
+dist/*
+*.o
+*.so
+*.dylib
+*.swp
+pdal/CMakeFiles/*
+pdal/CMakeCache
+pdal/cmake_install.cmake
+pdal/Makefile
