@@ -139,6 +139,16 @@ void JuliaFilter::ready(PointTableRef table)
         m_args->m_function));
     m_juliaMethod.reset(new jlang::Invocation(*m_script, table.metadata(),
         m_args->m_pdalargs.dump(1)));
+
+    /* required: setup the Julia context */
+  // #ifdef JULIA_SYS_PATH
+    /* There is an issue with debian install of julia: https://github.com/Non-Contradiction/JuliaCall/issues/99 */
+    // jl_init_with_image(JULIA_SYS_PATH, "sys.so");
+  // #else
+  //   jl_init();
+  // #endif
+
+  jl_init_with_image("/usr/lib/x86_64-linux-gnu/julia/", "sys.so");
 }
 
 
@@ -147,15 +157,7 @@ PointViewSet JuliaFilter::run(PointViewPtr view)
     log()->get(LogLevel::Debug5) << "filters.julia " << *m_script <<
         " processing " << view->size() << " points." << std::endl;
 
-    // TODO: Use Julia evaluator to run the filter
-
-  /* required: setup the Julia context */
-#ifdef JULIA_SYS_PATH
-  /* There is an issue with debian install of julia: https://github.com/Non-Contradiction/JuliaCall/issues/99 */
-  jl_init_with_image(JULIA_SYS_PATH, "sys.so");
-#else
-  jl_init();
-#endif
+  // TODO: Use Julia evaluator to run the filter
 
   /* run Julia commands */
   jl_eval_string("print(sqrt(2.0))");
@@ -165,7 +167,6 @@ PointViewSet JuliaFilter::run(PointViewPtr view)
        Julia time to cleanup pending write requests
        and run all finalizers
   */
-  jl_atexit_hook(0);
 
     m_juliaMethod->execute(view, getMetadata());
 
@@ -177,6 +178,7 @@ PointViewSet JuliaFilter::run(PointViewPtr view)
 
 void JuliaFilter::done(PointTableRef table)
 {
+    jl_atexit_hook(0);
     // static_cast<plang::Environment*>(plang::Environment::get())->reset_stdout();
 }
 

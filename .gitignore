@@ -1,10 +1,15 @@
 build/*
 dist/*
 *.o
+*.a
 *.so
 *.dylib
 *.swp
+*.swo
 pdal/CMakeFiles/*
 pdal/CMakeCache
 pdal/cmake_install.cmake
 pdal/Makefile
+pdal/googletest*
+
+pdal/julia_filter_test

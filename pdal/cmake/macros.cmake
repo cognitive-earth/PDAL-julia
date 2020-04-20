@@ -98,3 +98,40 @@ macro(PDAL_JULIA_ADD_PLUGIN _name _type _shortname)
     endif()
 endmacro(PDAL_JULIA_ADD_PLUGIN)
 
+macro(PDAL_JULIA_ADD_TEST _name)
+    set(options)
+    set(oneValueArgs)
+    set(multiValueArgs FILES LINK_WITH INCLUDES SYSTEM_INCLUDES COMPILE_OPTIONS)
+    cmake_parse_arguments(PDAL_JULIA_ADD_TEST "${options}" "${oneValueArgs}"
+        "${multiValueArgs}" ${ARGN})
+    if(WIN32)
+        set(WINSOCK_LIBRARY ws2_32)
+    endif()
+
+    add_executable(${_name} ${PDAL_JULIA_ADD_TEST_FILES})
+    pdal_julia_target_compile_settings(${_name})
+    target_include_directories(${_name} PRIVATE
+        ${PROJECT_BINARY_DIR}/include
+        ${PDAL_INCLUDE_DIR}
+        ${PDAL_JULIA_ADD_TEST_INCLUDES}
+    )
+    # target_link_options(${_name} BEFORE PRIVATE ${PDAL_JULIA_ADD_TEST_COMPILE_OPTIONS})
+    target_compile_definitions(${_name} PRIVATE
+      PDAL_JULIA_LIBRARY="${JULIA_LIBRARY}")
+    if (PDAL_JULIA_ADD_TEST_SYSTEM_INCLUDES)
+        target_include_directories(${_name} SYSTEM PRIVATE
+          ${PDAL_JULIA_ADD_TEST_SYSTEM_INCLUDES})
+    endif()
+    target_link_libraries(${_name}
+        PRIVATE
+          ${PDAL_JULIA_ADD_PLUGIN_LINK_WITH}
+          gtest
+          ${WINSOCK_LIBRARY}
+    )
+    add_test(NAME ${_name}
+      COMMAND
+        "${PROJECT_BINARY_DIR}/bin/${_name}"
+      WORKING_DIRECTORY
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/..")
+endmacro(PDAL_JULIA_ADD_TEST)
+

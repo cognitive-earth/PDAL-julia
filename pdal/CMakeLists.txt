@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.11.0)
 project(pdal)
 
-# macros for creating targets
 include(${PROJECT_SOURCE_DIR}/cmake/macros.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/FindJulia.cmake)
 
@@ -10,24 +9,53 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_BUILD_TYPE "Release")
 
-# Python-finding settings
-
-# find PDAL. Require 2.1+
+##################################################################################
+#
+# PDAL (Require 2.1+)
+#
+##################################################################################
 find_package(PDAL 2.1 REQUIRED)
 
-
-# Configure Julia for embedding
+##################################################################################
 #
-# https://docs.julialang.org/en/v1/manual/embedding/
+# GOOGLETEST
+#
+##################################################################################
 
-# add_executable(Test test.cpp)
-# target_include_directories(Test PUBLIC "$<BUILD_INTERFACE:${Julia_INCLUDE_DIRS}>")
-# add_definitions(-DJULIA_ENABLE_THREADING)
-# target_link_libraries(Test PUBLIC $<BUILD_INTERFACE:${Julia_LIBRARY}>)
+# Download and unpack googletest at configure time
+configure_file(test/gtest/CMakeLists.txt.in googletest-download/CMakeLists.txt)
+execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+  RESULT_VARIABLE result
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
+if(result)
+  message(FATAL_ERROR "CMake step for googletest failed: ${result}")
+endif()
+execute_process(COMMAND ${CMAKE_COMMAND} --build .
+  RESULT_VARIABLE result
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
+if(result)
+  message(FATAL_ERROR "Build step for googletest failed: ${result}")
+endif()
 
+# Prevent overriding the parent project's compiler/linker
+# settings on Windows
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+# Add googletest directly to our build. This defines
+# the gtest and gtest_main targets.
+add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
+                 ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
+                 EXCLUDE_FROM_ALL)
+
+
+##################################################################################
+#
+# Embed Julia (https://docs.julialang.org/en/v1/manual/embedding/)
+#
+##################################################################################
+add_definitions(-DJULIA_ENABLE_THREADING)
 
 # Configure julia filter as PDAL extension
-
 PDAL_JULIA_ADD_PLUGIN(julia_filter filter julia
   FILES
     ./filters/JuliaFilter.cpp
@@ -42,17 +70,19 @@ PDAL_JULIA_ADD_PLUGIN(julia_filter filter julia
     "$<BUILD_INTERFACE:${Julia_INCLUDE_DIRS}>"
 )
 
-# add_library(${extension} MODULE ${EXTENSION_SRC} libpdalpython)
-# target_include_directories( ${extension}
-#     PRIVATE
-#     .
-#     ${PDAL_INCLUDE_DIRS}
-# )
-    # ${Python3_INCLUDE_DIRS}
-    # ${Python3_NumPy_INCLUDE_DIRS})
-
-# target_link_libraries(${extension} ${PDAL_LIBRARIES})
-# python_extension_module(${extension})
-
-# install(TARGETS ${extension} LIBRARY DESTINATION ${PROJECT_NAME})
+# Unit tests for julia filter
+PDAL_JULIA_ADD_TEST(julia_filter_test
+  FILES
+    ./test/JuliaFilterTest.cpp
+    ./test/Support.cpp
+    ./jlang/Script.cpp
+    ./jlang/Invocation.cpp
+  LINK_WITH
+    # ${julia_filter}
+    ${PDAL_LIBRARIES}
+    $<BUILD_INTERFACE:${Julia_LIBRARY}>
+  SYSTEM_INCLUDES
+    ${PDAL_INCLUDE_DIRS}
+    "$<BUILD_INTERFACE:${Julia_INCLUDE_DIRS}>"
+)
 
