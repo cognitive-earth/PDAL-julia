@@ -35,6 +35,7 @@
 #include "Invocation.hpp"
 
 #include <pdal/util/Algorithm.hpp>
+#include <julia.h>
 
 namespace pdal
 {
@@ -79,12 +80,98 @@ void Invocation::compile()
     //
     // if (!PyCallable_Check(m_function))
     //     throw pdal_error(getTraceback());
+
+
+    /* required: setup the Julia context */
+  // #ifdef JULIA_SYS_PATH
+    /* There is an issue with debian install of julia: https://github.com/Non-Contradiction/JuliaCall/issues/99 */
+    // jl_init_with_image(JULIA_SYS_PATH, "sys.so");
+  // #else
+  // jl_init();
+  // #endif
+    jl_init_with_image("/usr/lib/x86_64-linux-gnu/julia/", "sys.so");
+
+    jl_eval_string(m_script.source());
+    jl_value_t * mod = (jl_value_t*) jl_eval_string(m_script.module());
+    m_function = jl_get_function((jl_module_t*) mod, m_script.function());
+
+    // TODO: Check its callable so we fail early
 }
 
+void Invocation::prepareData(PointViewPtr& view)
+{
+    PointLayoutPtr layout(view->table().layout());
+    Dimension::IdList const& dims = layout->dims();
 
+    // PyObject *arrays = PyDict_New();
+		// floa **arrays;
+		
+		// m_jlBuffers;
+
+		m_numDims = 0;
+    for (auto di = dims.begin(); di != dims.end(); ++di)
+    {
+				m_numDims++;
+
+        Dimension::Id d = *di;
+        const Dimension::Detail *dd = layout->dimDetail(d);
+        const Dimension::Type type = dd->type();
+        void *data = malloc(dd->size() * view->size());
+        char *p = (char *)data;
+        for (PointId idx = 0; idx < view->size(); ++idx)
+        {
+            view->getField(p, d, type, idx);
+            p += dd->size();
+        }
+        std::string name = layout->dimName(*di);
+
+				std::cout << name;
+				std::cout << ((double*) p)[0];
+				std::cout << "\n";
+
+        // jl_array_t *array_ptr = jl_ptr_to_array_1d(p);
+        // m_jlBuffers.push_back(array_ptr);
+
+
+				// jl_array_t *array_ptr = jl_ptr_to_array_1d(raw_arrays);
+        // PyObject *array = addArray(name, (uint8_t *)data, dd->type(),
+            // view->size());
+        // PyDict_SetItemString(arrays, name.c_str(), array);
+
+        // m_pyInputArrays.push_back(array);  // Hold for de-referencing.
+        // m_numpyBuffers.push_back(data);    // Hold for deallocation
+    }
+
+    MetadataNode layoutMeta = view->layout()->toMetadata();
+    MetadataNode srsMeta = view->spatialReference().toMetadata();
+
+    // addGlobalObject(m_module, plang::fromMetadata(m_inputMetadata), "metadata");
+    // addGlobalObject(m_module, getPyJSON(m_pdalargs), "pdalargs");
+    // addGlobalObject(m_module, getPyJSON(Utils::toJSON(layoutMeta)), "schema");
+    // addGlobalObject(m_module, getPyJSON(Utils::toJSON(srsMeta)),
+        // "spatialreference");
+
+    // return arrays;
+}
 
 bool Invocation::execute(PointViewPtr& v, MetadataNode stageMetadata)
 {
+  prepareData(v);
+
+  // jl_value_t *ret = jl_call(m_function, m_jlBuffers.data(), m_numDims);
+  //
+  // if (jl_typeis(ret, jl_float64_type)) {
+  //       double ret_unboxed = jl_unbox_float64(ret);
+  //       printf("sqrt(2.0) in C: %e \n", ret_unboxed);
+  // }
+  // else {
+  //       printf("ERROR: unexpected return type from sqrt(::Float64)\n");
+  // }
+
+  return true;
+  // jl_atexit_hook(0);
+
+    
     // if (!m_module)
     //     throw pdal_error("No code has been compiled");
 

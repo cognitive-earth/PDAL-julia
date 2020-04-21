@@ -34,6 +34,7 @@
 
 #pragma once
 
+#include <julia.h>
 #include <pdal/pdal_internal.hpp>
 
 #include "Script.hpp"
@@ -57,19 +58,16 @@ public:
 
     bool execute(PointViewPtr& v, MetadataNode stageMetadata);
 
-    // PyObject* m_function;
+    jl_function_t* m_function;
 
 private:
     void compile();
+    void prepareData(PointViewPtr& view);
 
     Script m_script;
 
-    // PyObject* m_module;
-    // Pointer to the function in the module.  Owned by the module.
-
-    // Pointers to numpy arrays and contained data buffers for cleanup.
-    // std::vector<PyObject*> m_pyInputArrays;
-    // std::vector<void *> m_numpyBuffers;
+    std::vector<jl_value_t *> m_jlBuffers;
+    int32_t m_numDims;
 
     MetadataNode m_inputMetadata;
     std::string m_pdalargs;

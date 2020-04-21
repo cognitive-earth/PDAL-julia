@@ -41,7 +41,7 @@
 #include <pdal/util/ProgramArgs.hpp>
 #include <pdal/util/FileUtils.hpp>
 
-#include <julia.h>
+// #include <julia.h>
 // JULIA_DEFINE_FAST_TLS() // only define this once, in an executable (not in a shared library) if you want fast code.
 
 namespace pdal
@@ -140,15 +140,6 @@ void JuliaFilter::ready(PointTableRef table)
     m_juliaMethod.reset(new jlang::Invocation(*m_script, table.metadata(),
         m_args->m_pdalargs.dump(1)));
 
-    /* required: setup the Julia context */
-  // #ifdef JULIA_SYS_PATH
-    /* There is an issue with debian install of julia: https://github.com/Non-Contradiction/JuliaCall/issues/99 */
-    // jl_init_with_image(JULIA_SYS_PATH, "sys.so");
-  // #else
-  //   jl_init();
-  // #endif
-
-  jl_init_with_image("/usr/lib/x86_64-linux-gnu/julia/", "sys.so");
 }
 
 
@@ -156,17 +147,6 @@ PointViewSet JuliaFilter::run(PointViewPtr view)
 {
     log()->get(LogLevel::Debug5) << "filters.julia " << *m_script <<
         " processing " << view->size() << " points." << std::endl;
-
-  // TODO: Use Julia evaluator to run the filter
-
-  /* run Julia commands */
-  jl_eval_string("print(sqrt(2.0))");
-
-  /* strongly recommended: notify Julia that the
-       program is about to terminate. this allows
-       Julia time to cleanup pending write requests
-       and run all finalizers
-  */
 
     m_juliaMethod->execute(view, getMetadata());
 
@@ -178,7 +158,6 @@ PointViewSet JuliaFilter::run(PointViewPtr view)
 
 void JuliaFilter::done(PointTableRef table)
 {
-    jl_atexit_hook(0);
     // static_cast<plang::Environment*>(plang::Environment::get())->reset_stdout();
 }
 

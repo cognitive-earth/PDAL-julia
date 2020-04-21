@@ -75,10 +75,8 @@ PDAL_JULIA_ADD_TEST(julia_filter_test
   FILES
     ./test/JuliaFilterTest.cpp
     ./test/Support.cpp
-    ./jlang/Script.cpp
-    ./jlang/Invocation.cpp
   LINK_WITH
-    # ${julia_filter}
+    ${julia_filter}
     ${PDAL_LIBRARIES}
     $<BUILD_INTERFACE:${Julia_LIBRARY}>
   SYSTEM_INCLUDES

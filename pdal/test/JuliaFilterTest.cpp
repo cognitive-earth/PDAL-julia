@@ -80,21 +80,11 @@ TEST_F(JuliaFilterTest, JuliaFilterTest_test1)
     ops2.add("mode", "ramp");
     reader2.setOptions(ops2);
 
-    Option source("source", "import numpy as np\n"
-        "def myfunc(ins,outs):\n"
-        "  X = ins['X']\n"
-        "  Y = ins['Y']\n"
-        "  Z = ins['Z']\n"
-        "  #print ins['X']\n"
-        "  X = X + 10.0\n"
-        "  # Y: leave as-is, don't export back out\n"
-        "  # Z: goofiness to make it a numpy array of a constant\n"
-        "  Z = np.zeros(X.size) + 3.14\n"
-        "  outs['X'] = X\n"
-        "  #print outs['X']\n"
-        "  outs['Z'] = Z\n"
-        "  return True\n"
-    );
+    Option source("source", "module MyModule\n"
+                   "  function myfunc(x)\n"
+                   "    sqrt(x)\n"
+                   "  end\n"
+                   "end\n");
     Option module("module", "MyModule");
     Option function("function", "myfunc");
     Options opts;
