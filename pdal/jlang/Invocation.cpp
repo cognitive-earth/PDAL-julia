@@ -105,17 +105,20 @@ void Invocation::prepareData(PointViewPtr& view)
 
     // PyObject *arrays = PyDict_New();
 		// floa **arrays;
-		
-		// m_jlBuffers;
 
 		m_numDims = 0;
     for (auto di = dims.begin(); di != dims.end(); ++di)
     {
-				m_numDims++;
-
         Dimension::Id d = *di;
         const Dimension::Detail *dd = layout->dimDetail(d);
         const Dimension::Type type = dd->type();
+
+        // Ignore non-floats for now
+        // if (dd->size() != 8) {
+        //   continue;
+        // }
+
+				m_numDims++;
         void *data = malloc(dd->size() * view->size());
         char *p = (char *)data;
         for (PointId idx = 0; idx < view->size(); ++idx)
@@ -123,23 +126,15 @@ void Invocation::prepareData(PointViewPtr& view)
             view->getField(p, d, type, idx);
             p += dd->size();
         }
+
         std::string name = layout->dimName(*di);
 
-				std::cout << name;
-				std::cout << ((double*) p)[0];
-				std::cout << "\n";
+        // TODO: how do we introspect the type here?
+        jl_value_t* array_type = jl_apply_array_type((jl_value_t*) jl_float64_type, 1);
+        // jl_value_t* array_type = jl_apply_array_type(reinterpret_cast<jl_value_t *>(jl_voidpointer_type), 1);
+        jl_array_t* array_ptr = jl_ptr_to_array_1d(array_type, data, view->size(), 0);
 
-        // jl_array_t *array_ptr = jl_ptr_to_array_1d(p);
-        // m_jlBuffers.push_back(array_ptr);
-
-
-				// jl_array_t *array_ptr = jl_ptr_to_array_1d(raw_arrays);
-        // PyObject *array = addArray(name, (uint8_t *)data, dd->type(),
-            // view->size());
-        // PyDict_SetItemString(arrays, name.c_str(), array);
-
-        // m_pyInputArrays.push_back(array);  // Hold for de-referencing.
-        // m_numpyBuffers.push_back(data);    // Hold for deallocation
+        m_jlBuffers.push_back(array_ptr);
     }
 
     MetadataNode layoutMeta = view->layout()->toMetadata();
@@ -158,8 +153,11 @@ bool Invocation::execute(PointViewPtr& v, MetadataNode stageMetadata)
 {
   prepareData(v);
 
-  // jl_value_t *ret = jl_call(m_function, m_jlBuffers.data(), m_numDims);
-  //
+  jl_value_t *ret = jl_call(m_function,(jl_value_t**) m_jlBuffers.data(), m_numDims);
+  if (jl_exception_occurred())
+        std::cout << "Julia Error: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
+
+  // https://groups.google.com/forum/#!topic/julia-users/TrMvMCZ-_8E
   // if (jl_typeis(ret, jl_float64_type)) {
   //       double ret_unboxed = jl_unbox_float64(ret);
   //       printf("sqrt(2.0) in C: %e \n", ret_unboxed);

@@ -81,8 +81,11 @@ TEST_F(JuliaFilterTest, JuliaFilterTest_test1)
     reader2.setOptions(ops2);
 
     Option source("source", "module MyModule\n"
-                   "  function myfunc(x)\n"
-                   "    sqrt(x)\n"
+                   "  function myfunc(xs, ys, zs, t)\n"
+                   "    print(xs)\n"
+                   "    print(ys)\n"
+                   "    print(zs)\n"
+                   "    print(t)\n"
                    "  end\n"
                    "end\n");
     Option module("module", "MyModule");

@@ -66,7 +66,7 @@ private:
 
     Script m_script;
 
-    std::vector<jl_value_t *> m_jlBuffers;
+    std::vector<jl_array_t *> m_jlBuffers;
     int32_t m_numDims;
 
     MetadataNode m_inputMetadata;
