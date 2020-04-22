@@ -65,14 +65,14 @@ We make the following packages available by default
 
 ## Progress
 
-[x] Compile PDAL filter with access to Julia headers and runtime
-[x] Embedded Julia interpreter inside PDAL filter
-[x] Compile script once, run for each PointCloudView
-[x] Runnable unit test for new PDAL filter
-[x] POC of passing Point Cloud data into Julia script (X,Y,Z dims at least)
-[]  Design interface for Julia scripts
-[]  Include useful Julia libraries for use by submitted script
-[]  Wrapper (in Julia or C++?) to convert from array of c++ arrays (one per dim) to rich Julia type and pass into function
-[]  Wrapper (in Julia or C++?) to convert from rich Julia return type to array of c++ arrays
-[]  Build Alpine and Debian docker images
+- [x] Compile PDAL filter with access to Julia headers and runtime
+- [x] Embedded Julia interpreter inside PDAL filter
+- [x] Compile script once, run for each PointCloudView
+- [x] Runnable unit test for new PDAL filter
+- [x] POC of passing Point Cloud data into Julia script (X,Y,Z dims at least)
+- []  Design interface for Julia scripts
+- []  Include useful Julia libraries for use by submitted script
+- []  Wrapper (in Julia or C++?) to convert from array of c++ arrays (one per dim) to rich Julia type and pass into function
+- []  Wrapper (in Julia or C++?) to convert from rich Julia return type to array of c++ arrays
+- []  Build Alpine and Debian docker images
 
