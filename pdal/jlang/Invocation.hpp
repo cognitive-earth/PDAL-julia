@@ -59,14 +59,16 @@ public:
     bool execute(PointViewPtr& v, MetadataNode stageMetadata);
 
     jl_function_t* m_function;
+    jl_value_t* m_wrapperMod;
+    jl_value_t* m_juliaGcRefsDict;
 
 private:
     void compile();
-    void prepareData(PointViewPtr& view);
+    std::vector<jl_array_t *> prepareData(PointViewPtr& view);
 
     Script m_script;
 
-    std::vector<jl_array_t *> m_jlBuffers;
+    std::vector<std::string> m_dimNames;
     int32_t m_numDims;
 
     MetadataNode m_inputMetadata;

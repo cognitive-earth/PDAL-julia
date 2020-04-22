@@ -81,11 +81,9 @@ TEST_F(JuliaFilterTest, JuliaFilterTest_test1)
     reader2.setOptions(ops2);
 
     Option source("source", "module MyModule\n"
-                   "  function myfunc(xs, ys, zs, t)\n"
-                   "    print(xs)\n"
-                   "    print(ys)\n"
-                   "    print(zs)\n"
-                   "    print(t)\n"
+                   "  function myfunc(input)\n"
+                   "    println(input)\n"
+                   "    return input\n"
                    "  end\n"
                    "end\n");
     Option module("module", "MyModule");
