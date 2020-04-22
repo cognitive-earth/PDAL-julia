@@ -1,5 +1,5 @@
 /******************************************************************************
-* Copyright (c) 2011, Michael P. Gerlek (mpg@flaxen.com)
+* Copyright (c) 2020, Julian Fell (hi@jtfell.com)
 *
 * All rights reserved.
 *

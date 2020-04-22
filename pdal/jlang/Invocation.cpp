@@ -1,5 +1,5 @@
 /******************************************************************************
-* Copyright (c) 2011, Michael P. Gerlek (mpg@flaxen.com)
+* Copyright (c) 2020, Julian Fell (hi@jtfell.com)
 *
 * All rights reserved.
 *
@@ -103,9 +103,6 @@ void Invocation::prepareData(PointViewPtr& view)
     PointLayoutPtr layout(view->table().layout());
     Dimension::IdList const& dims = layout->dims();
 
-    // PyObject *arrays = PyDict_New();
-		// floa **arrays;
-
 		m_numDims = 0;
     for (auto di = dims.begin(); di != dims.end(); ++di)
     {
@@ -156,6 +153,8 @@ bool Invocation::execute(PointViewPtr& v, MetadataNode stageMetadata)
   jl_value_t *ret = jl_call(m_function,(jl_value_t**) m_jlBuffers.data(), m_numDims);
   if (jl_exception_occurred())
         std::cout << "Julia Error: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
+
+
 
   // https://groups.google.com/forum/#!topic/julia-users/TrMvMCZ-_8E
   // if (jl_typeis(ret, jl_float64_type)) {
