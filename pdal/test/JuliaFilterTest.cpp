@@ -80,9 +80,12 @@ TEST_F(JuliaFilterTest, JuliaFilterTest_test1)
     ops2.add("mode", "ramp");
     reader2.setOptions(ops2);
 
+    // Can use 3rd party deps in the submitted src
     Option source("source", "module MyModule\n"
+                   "using TypedTables\n"
+                   "using RoamesGeometry\n"
                    "  function myfunc(input)\n"
-                   "    println(input)\n"
+                   "    println(TypedTables.columnnames(input))\n"
                    "    return input\n"
                    "  end\n"
                    "end\n");

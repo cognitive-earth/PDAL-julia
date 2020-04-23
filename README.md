@@ -51,14 +51,13 @@ The aim is to expose a modern Julia interface for dealing with PointCloud data, 
 must have the the following interface:
 
 ```
-TODO
+function (TypedTable) -> TypedTable
 ```
 
-A point cloud is represented as a Table from TypedTables.jl where the position column contains 3D points.
+A point cloud is represented as a Table from TypedTables.jl where the X,Y,Z columns contains 3D point positions.
 
 We make the following packages available by default
 
-- https://github.com/visr/LasIO.jl
 - https://github.com/FugroRoames/RoamesGeometry.jl
 - https://github.com/JuliaData/TypedTables.jl
 
@@ -70,9 +69,9 @@ We make the following packages available by default
 - [x] Compile script once, run for each PointCloudView
 - [x] Runnable unit test for new PDAL filter
 - [x] POC of passing Point Cloud data into Julia script (X,Y,Z dims at least)
-- []  Design interface for Julia scripts
+- [x]  Design interface for Julia scripts
 - []  Include useful Julia libraries for use by submitted script
-- []  Wrapper (in Julia or C++?) to convert from array of c++ arrays (one per dim) to rich Julia type and pass into function
-- []  Wrapper (in Julia or C++?) to convert from rich Julia return type to array of c++ arrays
+- [x]  Wrapper (in Julia) to convert from array of c++ arrays (one per dim) to rich Julia type and pass into function
+- []  Wrapper (in Julia/C++) to convert from rich Julia return type to array of c++ arrays
 - []  Build Alpine and Debian docker images
 

@@ -1,2 +1,3 @@
 [deps]
+RoamesGeometry = "7182eba8-869d-4e5d-8801-8896391ab281"
 TypedTables = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"

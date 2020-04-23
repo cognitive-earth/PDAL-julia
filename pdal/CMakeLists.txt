@@ -55,6 +55,8 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
 ##################################################################################
 add_definitions(-DJULIA_ENABLE_THREADING)
 
+set(JULIA_SYS_PATH "${Julia_LIBRARY_DIR}/julia")
+
 # Configure julia filter as PDAL extension
 PDAL_JULIA_ADD_PLUGIN(julia_filter filter julia
   FILES

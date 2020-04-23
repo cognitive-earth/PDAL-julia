@@ -10,9 +10,10 @@ module PdalJulia
       end
   end
 
-  function wrapArgs(args...)
-    numDims = length(args) - 2
-    ptrArray = args[length(args) - 1] # 2nd last arg is an array of pointers to the names of each dim
+  function runStage(args...)
+    numDims = length(args) - 3
+    ptrArray = args[length(args) - 2] # 3nd last arg is an array of pointers to the names of each dim
+    userFn = args[length(args)] # last arg is the user supplied function
 
     # Build a dictionary of dimName:dimValArray
     dims = Dict{Symbol,Array}()
@@ -25,13 +26,30 @@ module PdalJulia
     # Convert the Dict into a named tuple
     nt = NamedTuple{Tuple(keys(dims))}(values(dims))
 
-    # Finally return as a TypedTable
-    return Table(nt)
+    # Convert to a TypedTable
+    tbl = Table(nt)
+
+    # Run the user-supplied function on the input data
+    ret = userFn(tbl)
+
+    # Convert the TypedTable back into a format that is readable from C++
+    return unwrapRet(ret)
   end
 
-  function unwrapRet(args...)
-    println(args)
-    return args
+  function unwrapRet(ret)
+    result = []
+    dims = []
+    for colname in TypedTables.columnnames(ret)
+      col =Base.getproperty(ret, colname)
+
+      push!(dims, string(colname))
+      push!(result, col)
+    end
+
+    # Add the dim names in order as the last element in the result array passed back to C++
+    push!(result, dims)
+
+    return result
   end
 
 end # module

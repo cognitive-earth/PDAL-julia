@@ -64,7 +64,7 @@ public:
 
 private:
     void compile();
-    std::vector<jl_array_t *> prepareData(PointViewPtr& view);
+    std::vector<jl_value_t **> prepareData(PointViewPtr& view);
 
     Script m_script;
 
