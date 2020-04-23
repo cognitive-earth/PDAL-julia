@@ -95,9 +95,9 @@ void Invocation::compile()
     // Initialise a dictionary of references to make sure julia's GC doesn't free anything we want to keep
     m_juliaGcRefsDict = jl_eval_string("GC_refs = IdDict()");
 
-    std::string wrapperModuleSrc = FileUtils::readFileIntoString(FileUtils::toAbsolutePath("../jl/Wrapper.jl"));
+    std::string wrapperModuleSrc = FileUtils::readFileIntoString(FileUtils::toAbsolutePath("../jl/PdalJulia.jl"));
     jl_eval_string(wrapperModuleSrc.c_str());
-    m_wrapperMod = (jl_value_t*) jl_eval_string("Wrapper");
+    m_wrapperMod = (jl_value_t*) jl_eval_string("PdalJulia");
 
     // Initialise user-supplied script
     jl_eval_string(m_script.source());
@@ -167,7 +167,7 @@ std::vector<jl_array_t *> Invocation::prepareData(PointViewPtr& view)
 
     // pointers to start of string
     jl_value_t* array_type_pointer = jl_apply_array_type((jl_value_t*) jl_voidpointer_type, 1);
-    jl_array_t* str_array = jl_ptr_to_array_1d( array_type_pointer, (void*) dimNamesArray, m_dimNames.size(), 1 );
+    jl_array_t* str_array = jl_ptr_to_array_1d( array_type_pointer, (void*) dimNamesArray, m_dimNames.size(), 1);
     arrayBuffers.push_back(str_array);
 
     // string contents
@@ -210,10 +210,10 @@ bool Invocation::execute(PointViewPtr& v, MetadataNode stageMetadata)
 
   // TODO: Why does this trigger a "BoundsError"?
   // Call the wrapper fn to convert from the rich Julia type back into c++ arrays
-  // jl_function_t* unwrapRetFn = jl_get_function((jl_module_t*) m_wrapperMod, "unwrapRet");
-  // jl_value_t *unwrappedArrays = jl_call1(wrapArgsFn, wrappedPcRet);
-  // if (jl_exception_occurred())
-  //     std::cout << "Julia Error in unwrapRet: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
+  jl_function_t* unwrapRetFn = jl_get_function((jl_module_t*) m_wrapperMod, "unwrapRet");
+  jl_value_t *unwrappedArrays = jl_call1(wrapArgsFn, wrappedPcRet);
+  if (jl_exception_occurred())
+      std::cout << "Julia Error in unwrapRet: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
 
   return true;
 
