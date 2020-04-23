@@ -24,8 +24,7 @@ module PdalJulia
     dims = Dict{Symbol,Array}()
     for i = 1:numDims
         dimName = Symbol(extractString(ptrArray, i, numDims))
-        dimValArray = args[i]
-        dims[dimName] = dimValArray
+        dims[dimName] = args[i]
     end
 
     # Convert to a TypedTable
@@ -45,7 +44,7 @@ module PdalJulia
     result = []
     dims = []
     for colname in TypedTables.columnnames(ret)
-      col =Base.getproperty(ret, colname)
+      col = Base.getproperty(ret, colname)
 
       push!(dims, string(colname))
       push!(result, col)
