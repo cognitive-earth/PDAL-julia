@@ -60,11 +60,12 @@ public:
 
     jl_function_t* m_function;
     jl_value_t* m_wrapperMod;
-    jl_value_t* m_juliaGcRefsDict;
+    // std::vector<jl_value_t*> rooted_values;
 
 private:
     void compile();
     std::vector<jl_value_t **> prepareData(PointViewPtr& view);
+    // void root_scanner_cb(int);
 
     Script m_script;
 

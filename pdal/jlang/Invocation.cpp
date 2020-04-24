@@ -37,11 +37,19 @@
 #include <pdal/util/Algorithm.hpp>
 #include <pdal/util/FileUtils.hpp>
 #include <julia.h>
+// #include <julia_gcext.h>
 
 namespace pdal
 {
+
 namespace jlang
 {
+
+// std::vector<jl_value_t**> rooted_values;
+  
+// void root_scanner_cb(int);
+
+
 Invocation::Invocation(const Script& script, MetadataNode m,
         const std::string& pdalArgs) :
     m_script(script), m_inputMetadata(m), m_pdalargs(pdalArgs)
@@ -67,8 +75,7 @@ void Invocation::compile()
     //
     jl_init_with_image("/usr/lib/x86_64-linux-gnu/julia/", "sys.so");
 
-    // Initialise a dictionary of references to make sure julia's GC doesn't free anything we want to keep
-    m_juliaGcRefsDict = jl_eval_string("GC_refs = IdDict()");
+    // jl_gc_set_cb_root_scanner(root_scanner_cb, true);
 
     std::string wrapperModuleSrc = FileUtils::readFileIntoString(FileUtils::toAbsolutePath("../jl/PdalJulia.jl"));
     jl_eval_string(wrapperModuleSrc.c_str());
@@ -100,14 +107,6 @@ std::vector<jl_value_t **> Invocation::prepareData(PointViewPtr& view)
         if (dd->size() != 8) {
           continue;
         }
-
-        // TODO:
-        //
-        // There are lots of allocations here that need to be dealt with. I believe there are 2 options here:
-        //
-        // 1. Manually free anything that isn't passed into Julia
-        // 2. Use https://github.com/JuliaLang/julia/blob/master/src/julia_gcext.h to allow the Julia GC to discover
-        //    roots
 
         m_numDims++;
         void *data = malloc(dd->size() * view->size());
@@ -167,14 +166,19 @@ std::vector<jl_value_t **> Invocation::prepareData(PointViewPtr& view)
     return arrayBuffers;
 }
 
-bool Invocation::execute(PointViewPtr& v, MetadataNode stageMetadata)
+bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
 {
   // Get the array of arrays representing the PointCloud dimensions ready to be passed into the
   // Julia interpreter
-  std::vector<jl_value_t **> juliaArgs = prepareData(v);
+  std::vector<jl_value_t **> julia_args = prepareData(view);
 
   // Add the user-supplied function as the final argument passed to the runStage function in Julia
-  juliaArgs.push_back((jl_value_t **) m_function);
+  julia_args.push_back((jl_value_t **) m_function);
+
+  // Declare the arguments to the Julia GC
+  // for (jl_value_t** arg : julia_args) {
+  //   rooted_values.push_back((jl_value_t **) arg);
+  // }
 
   // Run the Julia runtime function "runStage" which:
   //
@@ -182,39 +186,46 @@ bool Invocation::execute(PointViewPtr& v, MetadataNode stageMetadata)
   // 2. Passes that into the user-supplied function
   // 3. Unpacks the returned `TypedTable` into an array of arrays of dimensions, with the final
   //    array being the strings of the dimensions in order as they preceded it in the array
-  jl_function_t* runStageFn = jl_get_function((jl_module_t*) m_wrapperMod, "runStage");
-  jl_array_t *wrappedPc = (jl_array_t*) jl_call(runStageFn, (jl_value_t**) juliaArgs.data(), m_numDims + 3);
+  jl_function_t* run_stage_fn = jl_get_function((jl_module_t*) m_wrapperMod, "runStage");
+  jl_array_t *wrapped_pc = (jl_array_t*) jl_call(run_stage_fn, (jl_value_t**) julia_args.data(), m_numDims + 3);
   if (jl_exception_occurred())
       std::cout << "Julia Error in runStage: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
 
   //
   // Extract the values out of the Julia wrapped types
   //
-  assert(jl_is_array(wrappedPc));
-  assert(jl_array_eltype((jl_value_t*) wrappedPc) == jl_any_type);
-  int num_elems = jl_array_dim0(wrappedPc);
+  assert(jl_is_array(wrapped_pc));
+  assert(jl_array_eltype((jl_value_t*) wrapped_pc) == jl_any_type);
+  int num_elems = jl_array_dim0(wrapped_pc);
   int num_dims = num_elems - 1;
   std::cout << "Num dims " << num_dims << "\n";
 
   // Unpack the list of dim names
-  jl_value_t* dim_names_arr = jl_array_ptr_ref(wrappedPc, num_elems - 1);
+  jl_value_t* dim_names_arr = jl_array_ptr_ref(wrapped_pc, num_elems - 1);
   assert(jl_is_array(jl_array_ptr_ref(dim_names_arr, 0)));
   assert(jl_array_dim0(dim_names_arr) == num_dims);
 
+  PointLayoutPtr layout(view->table().layout());
+
   // Get each dimension (name and array of values)
   for (int dim_index = 0; dim_index < num_dims; dim_index++) {
-      jl_value_t* arr = jl_array_ptr_ref(wrappedPc, dim_index);
+      jl_value_t* arr = jl_array_ptr_ref(wrapped_pc, dim_index);
       char* dim_name_str = (char *) jl_string_ptr(jl_array_ptr_ref(dim_names_arr, dim_index));
-      std::cout << dim_name_str << ": " << jl_typename_str((jl_value_t*) jl_array_eltype(arr)) << "\n\n";
 
+      Dimension::Id d = layout->findDim(dim_name_str);
+      const Dimension::Detail *dd = layout->dimDetail(d);
+      assert(dd->size() == 8); // floats have a size of 8
+
+      // TODO: Handle other data types here
       if (jl_array_eltype(arr) == jl_float64_type) {
         // Get array pointer
         double *ptr = (double *) jl_array_data(arr);
         // Get number of points
         int point_num = jl_array_dim0(arr);
 
-        for (int i = 0; i < point_num; i++) {
-          std::cout << ptr[i] << "\n";
+        // Copy each point into the PDAL view
+        for (PointId idx = 0; idx < point_num; ++idx) {
+          view->setField(d, idx, ptr[idx]);
         }
       }
   }
@@ -225,6 +236,13 @@ bool Invocation::execute(PointViewPtr& v, MetadataNode stageMetadata)
   // jl_atexit_hook(0);
 }
 
+// inline void root_scanner_cb(int)
+// {
+//       // for (jl_value_t** arg : rooted_values)
+//       //           jl_gc_mark_queue_obj(jl_get_ptls_states(), (jl_value_t *) arg);
+// }
+
 
 } // namespace jlang
+
 } // namespace pdal

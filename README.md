@@ -6,6 +6,10 @@ Embeddable [Julia](https://julialang.org/) Filter stage for PDAL. Inspired by a 
 
 You will need CMake, a modern C++ compiler, PDAL and Julia installed (including headers and dev libraries).
 
+```
+sudo apt-get install cmake julia libjulia-dev
+```
+
 Build the shared lib,
 
 ```
