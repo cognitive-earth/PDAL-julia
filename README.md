@@ -72,6 +72,10 @@ We make the following packages available by default
 - [x]  Design interface for Julia scripts
 - []  Include useful Julia libraries for use by submitted script
 - [x]  Wrapper (in Julia) to convert from array of c++ arrays (one per dim) to rich Julia type and pass into function
-- []  Wrapper (in Julia/C++) to convert from rich Julia return type to array of c++ arrays
+- [x]  Wrapper (in Julia/C++) to convert from rich Julia return type to array of c++ arrays
+- []  Pass results of Julia filter back into PDAL interface
+- []  Expose metadata as a global to Julia fn
+- []  Support data types other than floats
+- []  Reasonable test coverage
 - []  Build Alpine and Debian docker images
 

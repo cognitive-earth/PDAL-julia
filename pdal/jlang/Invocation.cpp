@@ -183,10 +183,41 @@ bool Invocation::execute(PointViewPtr& v, MetadataNode stageMetadata)
   // 3. Unpacks the returned `TypedTable` into an array of arrays of dimensions, with the final
   //    array being the strings of the dimensions in order as they preceded it in the array
   jl_function_t* runStageFn = jl_get_function((jl_module_t*) m_wrapperMod, "runStage");
-  jl_value_t *wrappedPc = jl_call(runStageFn, (jl_value_t**) juliaArgs.data(), m_numDims + 3);
+  jl_array_t *wrappedPc = (jl_array_t*) jl_call(runStageFn, (jl_value_t**) juliaArgs.data(), m_numDims + 3);
   if (jl_exception_occurred())
       std::cout << "Julia Error in runStage: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
-  
+
+  //
+  // Extract the values out of the Julia wrapped types
+  //
+  assert(jl_is_array(wrappedPc));
+  assert(jl_array_eltype((jl_value_t*) wrappedPc) == jl_any_type);
+  int num_elems = jl_array_dim0(wrappedPc);
+  int num_dims = num_elems - 1;
+  std::cout << "Num dims " << num_dims << "\n";
+
+  // Unpack the list of dim names
+  jl_value_t* dim_names_arr = jl_array_ptr_ref(wrappedPc, num_elems - 1);
+  assert(jl_is_array(jl_array_ptr_ref(dim_names_arr, 0)));
+  assert(jl_array_dim0(dim_names_arr) == num_dims);
+
+  // Get each dimension (name and array of values)
+  for (int dim_index = 0; dim_index < num_dims; dim_index++) {
+      jl_value_t* arr = jl_array_ptr_ref(wrappedPc, dim_index);
+      char* dim_name_str = (char *) jl_string_ptr(jl_array_ptr_ref(dim_names_arr, dim_index));
+      std::cout << dim_name_str << ": " << jl_typename_str((jl_value_t*) jl_array_eltype(arr)) << "\n\n";
+
+      if (jl_array_eltype(arr) == jl_float64_type) {
+        // Get array pointer
+        double *ptr = (double *) jl_array_data(arr);
+        // Get number of points
+        int point_num = jl_array_dim0(arr);
+
+        for (int i = 0; i < point_num; i++) {
+          std::cout << ptr[i] << "\n";
+        }
+      }
+  }
 
   return true;
 
