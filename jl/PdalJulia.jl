@@ -5,17 +5,17 @@ module PdalJulia
   #
   # The main runtime for interfacing between the PDAL C++ Stage and the user-supplied Julia fn.
   #
-  # This function is passed a variable number of arguments,
+  # This function is passed an array of arguments,
   #
   # 1..N-3 => Array for each dimension in the PointCloud
   # N-2    => Array of pointers to the start of each string in the next argument
   # N-1    => Array of chars containing the names of all dimensions
   # N      => The user-defined function. It should be of the type: (Table -> Table)
   #
-  # The execution of the stage consists of converting the input arguments into a TypedTable representation,
+  # The execution of the stage consists of converting the input argument into a TypedTable representation,
   # running the user-supplied function with the TypedTable as its only argument, and finally unpacking the
   # TypedTable returned into a format readable by C++
-  function runStage(args...)
+  function runStage(args)
     numDims = length(args) - 3
     ptrArray = args[length(args) - 2]
     userFn = args[length(args)]

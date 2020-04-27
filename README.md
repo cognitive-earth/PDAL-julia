@@ -10,21 +10,49 @@ You will need CMake, a modern C++ compiler, PDAL and Julia installed (including 
 sudo apt-get install cmake julia libjulia-dev
 ```
 
-Build the shared lib,
+First build the shared lib for the filter,
 
 ```
-cd pdal
+cd PDAL-julia/pdal
 cmake .
 make
 ```
 
-Then link it when building PDAL.
-
-You can then run the tests,
+You can then run the tests to ensure it build correctly,
 
 ```
 ./julia_filter_test
 ```
+
+Next clone and build PDAL from source (I used the following - for more detailed instructions see 
+[PDAL Compilation](https://pdal.io/development/compilation/index.html)), and copy the shared library
+from the plugin into the PDAL lib folder (as well as the Julia script that wraps user-supplied functions)
+
+```
+git clone git@github.com:PDAL/PDAL.git
+mkdir PDAL/build
+cd PDAL/build
+cmake -G Ninja -DCMAKE_INSTALL_PREFIX=/usr/ -DCMAKE_BUILD_TYPE="Release" .
+ninja pdal
+
+# Copy the shared library file
+cp ../../PDAL-julia/pdal/libpdal_plugin_filter_julia.so ./lib
+# Copy the Julia-PDAL runtime
+cp -R ../../PDAL-julia/jl ../jl
+```
+
+Finally, run a test pipeline
+
+```
+./bin/pdal translate ../test/data/las/1.2-with-color.las julia-out.las julia \
+    --filters.julia.script=../../PDAL-julia/pdal/test/data/test1.jl \
+    --filters.julia.module="TestModule" \
+    --filters.julia.function="fff"
+
+# Check the output is valid
+./bin/pdal info julia-out.las
+```
+
 
 ## Usage
 
@@ -80,7 +108,8 @@ We make the following packages available by default
 - [x]  Pass results of Julia filter back into PDAL interface
 - []  Expose metadata as a global to Julia fn
 - []  Support data types other than floats
-- []  Try to get it to segfault due to non-registered roots in Julia GC
+- []  Try to get it to segfault due to non-registered roots in Julia GC to prove that GC_PUSH/GC_POP is working
+- [x]  Run as a filter in PDAL
 - []  Reasonable test coverage
 - []  Build Alpine and Debian docker images
 

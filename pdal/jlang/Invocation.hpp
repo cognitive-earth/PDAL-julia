@@ -1,4 +1,4 @@
-/******************************************************************************
+/*****************************************************************************
 * Copyright (c) 2020, Julian Fell (hi@jtfell.com)
 *
 * All rights reserved.
@@ -65,7 +65,7 @@ public:
 private:
     void initialise();
     void compile();
-    std::vector<jl_value_t *> prepareData(PointViewPtr& view);
+    jl_array_t* prepareData(PointViewPtr& view);
     // void root_scanner_cb(int);
 
     Script m_script;

@@ -37,7 +37,6 @@
 #include <pdal/util/Algorithm.hpp>
 #include <pdal/util/FileUtils.hpp>
 #include <julia.h>
-// #include <julia_gcext.h>
 
 #ifdef _WIN32
   #include <Windows.h>
@@ -50,11 +49,6 @@ namespace pdal
 
 namespace jlang
 {
-
-// std::vector<jl_value_t**> rooted_values;
-  
-// void root_scanner_cb(int);
-
 
 Invocation::Invocation(const Script& script, MetadataNode m,
         const std::string& pdalArgs) :
@@ -97,8 +91,6 @@ void Invocation::initialise()
     //
     // jl_init();
     jl_init_with_image("/usr/lib/x86_64-linux-gnu/julia/", "sys.so");
-
-    // jl_gc_set_cb_root_scanner(root_scanner_cb, true);
 }
 
 void Invocation::compile()
@@ -114,12 +106,22 @@ void Invocation::compile()
     // TODO: Check its callable so we fail early
 }
 
-std::vector<jl_value_t *> Invocation::prepareData(PointViewPtr& view)
+jl_array_t* Invocation::prepareData(PointViewPtr& view)
 {
     PointLayoutPtr layout(view->table().layout());
     Dimension::IdList const& dims = layout->dims();
 
-    std::vector<jl_value_t *> arrayBuffers;
+    // Allocate the array of arguments as a Julia array
+    jl_array_t* arg_array = jl_alloc_vec_any(0);
+    // As soon as you have this `jl_array_t`, you need to protect it
+    // immediately, before any other `jl_` functions are called.
+    // Any call to a `jl_*` function may cause arg_array to be freed
+    // behind your back.
+
+    // Luckily, anything stored in arg_array will be known to the GC
+    // via the arg_array root so you don't need to root it separately.
+    JL_GC_PUSH1(&arg_array);
+
 		m_numDims = 0;
     m_dimNames.clear();
     for (auto di = dims.begin(); di != dims.end(); ++di)
@@ -143,11 +145,13 @@ std::vector<jl_value_t *> Invocation::prepareData(PointViewPtr& view)
             p += dd->size();
         }
 
-        // TODO: how do we introspect the type here?
-        jl_value_t* array_type = jl_apply_array_type((jl_value_t*) jl_float64_type, 1);
-        // jl_value_t* array_type = jl_apply_array_type(reinterpret_cast<jl_value_t *>(jl_voidpointer_type), 1);
-        jl_array_t* array_ptr = jl_ptr_to_array_1d(array_type, data, view->size(), 0);
-        arrayBuffers.push_back((jl_value_t *) array_ptr);
+        if (dd->size() == 8) {
+          jl_value_t* array_type = jl_apply_array_type((jl_value_t*) jl_float64_type, 1);
+          jl_array_t* array_ptr = jl_ptr_to_array_1d(array_type, data, view->size(), 0);
+          // Add the array to the array of arguments
+          jl_array_ptr_1d_push(arg_array, (jl_value_t*) array_ptr);
+        }
+        // TODO: Handle other datatypes
 
         std::string name = layout->dimName(*di);
         m_dimNames.push_back(name);
@@ -172,12 +176,12 @@ std::vector<jl_value_t *> Invocation::prepareData(PointViewPtr& view)
     // pointers to start of string
     jl_value_t* array_type_pointer = jl_apply_array_type((jl_value_t*) jl_voidpointer_type, 1);
     jl_array_t* str_array = jl_ptr_to_array_1d( array_type_pointer, (void*) dimNamesArray, m_dimNames.size(), 1);
-    arrayBuffers.push_back((jl_value_t *) str_array);
+    jl_array_ptr_1d_push(arg_array, (jl_value_t *) str_array);
 
     // string contents
     jl_value_t* array_type_uint8 = jl_apply_array_type((jl_value_t*) jl_uint8_type, 1);
     jl_array_t* chr_array = jl_ptr_to_array_1d( array_type_uint8, (uint8_t*) dataArray, full_size, 1 );
-    arrayBuffers.push_back((jl_value_t *) chr_array);
+    jl_array_ptr_1d_push(arg_array, (jl_value_t *) chr_array);
 
     // TODO: Inject this into the Julia scope as global objects
     MetadataNode layoutMeta = view->layout()->toMetadata();
@@ -189,22 +193,27 @@ std::vector<jl_value_t *> Invocation::prepareData(PointViewPtr& view)
     // addGlobalObject(m_module, getPyJSON(Utils::toJSON(srsMeta)),
         // "spatialreference");
 
-    return arrayBuffers;
+    // Critically important: you must pair a POP with every PUSH
+    JL_GC_POP();
+
+    // Also critically important: now that you've POP'd,
+    // arg_array is no longer rooted, so you should
+    // avoid calling any other `jl_` function until it is
+    // rooted again by Invocation::execute()
+    return arg_array;
 }
 
 bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
 {
   // Get the array of arrays representing the PointCloud dimensions ready to be passed into the
   // Julia interpreter
-  std::vector<jl_value_t *> julia_args = prepareData(view);
+  jl_array_t * julia_args = prepareData(view);
 
-  // Add the user-supplied function as the final argument passed to the runStage function in Julia
-  julia_args.push_back((jl_value_t *) m_function);
+  // Immediately re-protect the args array from the Julia GC
+  JL_GC_PUSH1(&julia_args);
 
-  // Declare the arguments to the Julia GC
-  // for (jl_value_t** arg : julia_args) {
-  //   rooted_values.push_back((jl_value_t **) arg);
-  // }
+  // Add the user-supplied function as the final argument
+  jl_array_ptr_1d_push(julia_args, (jl_value_t *) m_function);
 
   // Run the Julia runtime function "runStage" which:
   //
@@ -214,16 +223,9 @@ bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
   //    array being the strings of the dimensions in order as they preceded it in the array
   jl_function_t* run_stage_fn = jl_get_function((jl_module_t*) m_wrapperMod, "runStage");
 
-  // Prepare the args to pass into the Julia runtime. We also declare them to the Julia GC
-  jl_value_t** args = julia_args.data();
-  // JL_GC_PUSHARGS(args, m_numDims + 3);
-
-  jl_array_t *wrapped_pc = (jl_array_t*) jl_call(run_stage_fn, args, m_numDims + 3);
+  jl_array_t *wrapped_pc = (jl_array_t*) jl_call1(run_stage_fn, (jl_value_t*) julia_args);
   if (jl_exception_occurred())
       std::cout << "Julia Error in runStage: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
-
-  // Unmark the args in the Julia runtime
-  // JL_GC_POP();
 
   //
   // Extract the values out of the Julia wrapped types
@@ -263,18 +265,14 @@ bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
       }
   }
 
+  // Critically important: you must pair a POP with every PUSH
+  JL_GC_POP();
+
   return true;
 
   // TODO: This needs to be called at the very end (not here as this is run for every point cloud view)
   // jl_atexit_hook(0);
 }
-
-// inline void root_scanner_cb(int)
-// {
-//       // for (jl_value_t** arg : rooted_values)
-//       //           jl_gc_mark_queue_obj(jl_get_ptls_states(), (jl_value_t *) arg);
-// }
-
 
 } // namespace jlang
 
