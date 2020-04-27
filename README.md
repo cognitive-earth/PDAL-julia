@@ -77,9 +77,10 @@ We make the following packages available by default
 - []  Include useful Julia libraries for use by submitted script
 - [x]  Wrapper (in Julia) to convert from array of c++ arrays (one per dim) to rich Julia type and pass into function
 - [x]  Wrapper (in Julia/C++) to convert from rich Julia return type to array of c++ arrays
-- []  Pass results of Julia filter back into PDAL interface
+- [x]  Pass results of Julia filter back into PDAL interface
 - []  Expose metadata as a global to Julia fn
 - []  Support data types other than floats
+- []  Try to get it to segfault due to non-registered roots in Julia GC
 - []  Reasonable test coverage
 - []  Build Alpine and Debian docker images
 

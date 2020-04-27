@@ -1,11 +1,10 @@
-{
-  "pipeline":[
-    "./pdal/test/data/1.2-with-color.las",
-    {
-      "type": "filters.python",
-      "script": "./pdal/test/data/test1.py",
-      "module": "anything",
-      "function": "fff"
-    }
-  ]
-}
+[
+  "./pdal/test/data/1.2-with-color.las",
+  {
+    "type": "filters.julia",
+    "script": "./pdal/test/data/test1.jl",
+    "module": "TestModule",
+    "function": "fff"
+  },
+  "./pdal/test/data/1.2-with-color-out.las"
+]

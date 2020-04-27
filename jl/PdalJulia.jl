@@ -29,7 +29,7 @@ module PdalJulia
 
     # Convert to a TypedTable
     nt = NamedTuple{Tuple(keys(dims))}(values(dims))
-    tbl = Table(nt)
+    tbl = FlexTable(nt)
 
     # Run the user-supplied function on the input data
     ret = userFn(tbl)

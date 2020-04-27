@@ -39,6 +39,12 @@
 #include <julia.h>
 // #include <julia_gcext.h>
 
+#ifdef _WIN32
+  #include <Windows.h>
+#else
+  #include <dlfcn.h>
+#endif
+
 namespace pdal
 {
 
@@ -55,14 +61,30 @@ Invocation::Invocation(const Script& script, MetadataNode m,
     m_script(script), m_inputMetadata(m), m_pdalargs(pdalArgs)
 {
     // Environment::get();
+    initialise();
     compile();
 }
 
-
-void Invocation::compile()
+/*
+ * Setup the Julia context
+ */
+void Invocation::initialise()
 {
-    // Setup the Julia context
-    // jl_init();
+    // dynamically load this same module into itself. PDAL doesn't set the RTLD_GLOBAL flag
+    // so Julia doesn't initialise correctly. This can be removed if 
+    //
+    // https://github.com/PDAL/PDAL/blob/master/pdal/DynamicLibrary.cpp#L96
+    //
+    // is changed to add that flag. See details here:
+    //
+    // https://discourse.julialang.org/t/different-behaviours-in-linux-and-macos-with-julia-embedded-in-c/18101/15
+    //
+    void *handle;
+    handle = dlopen("libpdal_plugin_filter_julia.so", RTLD_NOW | RTLD_GLOBAL);
+    if (!handle) {
+        fprintf (stderr, "%s\n", dlerror());
+        exit(1);
+    }
 
     // TODO Fix this
     //
@@ -73,10 +95,14 @@ void Invocation::compile()
     //  Can get the correct path during build time (in CMakeLists.txt)
     //    "${Julia_LIBRARY_DIR}/julia"
     //
+    // jl_init();
     jl_init_with_image("/usr/lib/x86_64-linux-gnu/julia/", "sys.so");
 
     // jl_gc_set_cb_root_scanner(root_scanner_cb, true);
+}
 
+void Invocation::compile()
+{
     std::string wrapperModuleSrc = FileUtils::readFileIntoString(FileUtils::toAbsolutePath("../jl/PdalJulia.jl"));
     jl_eval_string(wrapperModuleSrc.c_str());
     m_wrapperMod = (jl_value_t*) jl_eval_string("PdalJulia");
@@ -198,7 +224,6 @@ bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
   assert(jl_array_eltype((jl_value_t*) wrapped_pc) == jl_any_type);
   int num_elems = jl_array_dim0(wrapped_pc);
   int num_dims = num_elems - 1;
-  std::cout << "Num dims " << num_dims << "\n";
 
   // Unpack the list of dim names
   jl_value_t* dim_names_arr = jl_array_ptr_ref(wrapped_pc, num_elems - 1);
