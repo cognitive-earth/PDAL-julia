@@ -65,7 +65,7 @@ public:
 private:
     void initialise();
     void compile();
-    std::vector<jl_value_t **> prepareData(PointViewPtr& view);
+    std::vector<jl_value_t *> prepareData(PointViewPtr& view);
     // void root_scanner_cb(int);
 
     Script m_script;

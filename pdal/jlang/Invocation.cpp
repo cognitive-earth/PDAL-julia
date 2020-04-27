@@ -114,12 +114,12 @@ void Invocation::compile()
     // TODO: Check its callable so we fail early
 }
 
-std::vector<jl_value_t **> Invocation::prepareData(PointViewPtr& view)
+std::vector<jl_value_t *> Invocation::prepareData(PointViewPtr& view)
 {
     PointLayoutPtr layout(view->table().layout());
     Dimension::IdList const& dims = layout->dims();
 
-    std::vector<jl_value_t **> arrayBuffers;
+    std::vector<jl_value_t *> arrayBuffers;
 		m_numDims = 0;
     m_dimNames.clear();
     for (auto di = dims.begin(); di != dims.end(); ++di)
@@ -147,7 +147,7 @@ std::vector<jl_value_t **> Invocation::prepareData(PointViewPtr& view)
         jl_value_t* array_type = jl_apply_array_type((jl_value_t*) jl_float64_type, 1);
         // jl_value_t* array_type = jl_apply_array_type(reinterpret_cast<jl_value_t *>(jl_voidpointer_type), 1);
         jl_array_t* array_ptr = jl_ptr_to_array_1d(array_type, data, view->size(), 0);
-        arrayBuffers.push_back((jl_value_t **) array_ptr);
+        arrayBuffers.push_back((jl_value_t *) array_ptr);
 
         std::string name = layout->dimName(*di);
         m_dimNames.push_back(name);
@@ -172,12 +172,12 @@ std::vector<jl_value_t **> Invocation::prepareData(PointViewPtr& view)
     // pointers to start of string
     jl_value_t* array_type_pointer = jl_apply_array_type((jl_value_t*) jl_voidpointer_type, 1);
     jl_array_t* str_array = jl_ptr_to_array_1d( array_type_pointer, (void*) dimNamesArray, m_dimNames.size(), 1);
-    arrayBuffers.push_back((jl_value_t **) str_array);
+    arrayBuffers.push_back((jl_value_t *) str_array);
 
     // string contents
     jl_value_t* array_type_uint8 = jl_apply_array_type((jl_value_t*) jl_uint8_type, 1);
     jl_array_t* chr_array = jl_ptr_to_array_1d( array_type_uint8, (uint8_t*) dataArray, full_size, 1 );
-    arrayBuffers.push_back((jl_value_t **) chr_array);
+    arrayBuffers.push_back((jl_value_t *) chr_array);
 
     // TODO: Inject this into the Julia scope as global objects
     MetadataNode layoutMeta = view->layout()->toMetadata();
@@ -196,10 +196,10 @@ bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
 {
   // Get the array of arrays representing the PointCloud dimensions ready to be passed into the
   // Julia interpreter
-  std::vector<jl_value_t **> julia_args = prepareData(view);
+  std::vector<jl_value_t *> julia_args = prepareData(view);
 
   // Add the user-supplied function as the final argument passed to the runStage function in Julia
-  julia_args.push_back((jl_value_t **) m_function);
+  julia_args.push_back((jl_value_t *) m_function);
 
   // Declare the arguments to the Julia GC
   // for (jl_value_t** arg : julia_args) {
@@ -213,9 +213,17 @@ bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
   // 3. Unpacks the returned `TypedTable` into an array of arrays of dimensions, with the final
   //    array being the strings of the dimensions in order as they preceded it in the array
   jl_function_t* run_stage_fn = jl_get_function((jl_module_t*) m_wrapperMod, "runStage");
-  jl_array_t *wrapped_pc = (jl_array_t*) jl_call(run_stage_fn, (jl_value_t**) julia_args.data(), m_numDims + 3);
+
+  // Prepare the args to pass into the Julia runtime. We also declare them to the Julia GC
+  jl_value_t** args = julia_args.data();
+  // JL_GC_PUSHARGS(args, m_numDims + 3);
+
+  jl_array_t *wrapped_pc = (jl_array_t*) jl_call(run_stage_fn, args, m_numDims + 3);
   if (jl_exception_occurred())
       std::cout << "Julia Error in runStage: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
+
+  // Unmark the args in the Julia runtime
+  // JL_GC_POP();
 
   //
   // Extract the values out of the Julia wrapped types
