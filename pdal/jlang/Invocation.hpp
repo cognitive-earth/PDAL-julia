@@ -60,13 +60,13 @@ public:
 
     jl_function_t* m_function;
     jl_value_t* m_wrapperMod;
-    // std::vector<jl_value_t*> rooted_values;
 
 private:
     void initialise();
     void compile();
-    jl_array_t* prepareData(PointViewPtr& view);
-    // void root_scanner_cb(int);
+    jl_array_t* prepare_data(PointViewPtr& view);
+    jl_value_t* determine_jl_type(const Dimension::Detail* dd);
+    void unpack_array_into_pdal_view(jl_value_t* arr, PointViewPtr& view, Dimension::Id d);
 
     Script m_script;
 

@@ -13,7 +13,12 @@ sudo apt-get install cmake julia libjulia-dev
 First build the shared lib for the filter,
 
 ```
-cd PDAL-julia/pdal
+# Build the Julia sysimage
+cd PDAL-julia
+julia build_sys.jl
+
+# Build the C++ plugin
+cd pdal
 cmake .
 make
 ```
@@ -39,6 +44,7 @@ ninja pdal
 cp ../../PDAL-julia/pdal/libpdal_plugin_filter_julia.so ./lib
 # Copy the Julia-PDAL runtime
 cp -R ../../PDAL-julia/jl ../jl
+cp ../../PDAL-julia/pdal_jl_sys.so ..
 ```
 
 Finally, run a test pipeline
@@ -52,7 +58,6 @@ Finally, run a test pipeline
 # Check the output is valid
 ./bin/pdal info julia-out.las
 ```
-
 
 ## Usage
 
@@ -103,12 +108,13 @@ We make the following packages available by default
 - [x] POC of passing Point Cloud data into Julia script (X,Y,Z dims at least)
 - [x]  Design interface for Julia scripts
 - []  Include useful Julia libraries for use by submitted script
+  > start using docker to figure out how portable it is
 - [x]  Wrapper (in Julia) to convert from array of c++ arrays (one per dim) to rich Julia type and pass into function
 - [x]  Wrapper (in Julia/C++) to convert from rich Julia return type to array of c++ arrays
 - [x]  Pass results of Julia filter back into PDAL interface
 - []  Expose metadata as a global to Julia fn
-- []  Support data types other than floats
-- []  Try to get it to segfault due to non-registered roots in Julia GC to prove that GC_PUSH/GC_POP is working
+- [x]  Support data types other than floats
+- []  Try to get it to segfault due to non-registering roots in Julia GC to prove that GC_PUSH/GC_POP is working
 - [x]  Run as a filter in PDAL
 - []  Reasonable test coverage
 - []  Build Alpine and Debian docker images

@@ -80,17 +80,9 @@ void Invocation::initialise()
         exit(1);
     }
 
-    // TODO Fix this
-    //
-    //  On debian/ubuntu the path to the Julia runtime is wrong
-    //     See issue here:
-    //     https://github.com/Non-Contradiction/JuliaCall/issues/99
-    //
-    //  Can get the correct path during build time (in CMakeLists.txt)
-    //    "${Julia_LIBRARY_DIR}/julia"
-    //
-    // jl_init();
-    jl_init_with_image("/usr/lib/x86_64-linux-gnu/julia/", "sys.so");
+    // Load Julia with packages precompiled into a custom sysimage. This makes packaging easier,
+    // and allows quick startup of the interpreter.
+    jl_init_with_image(FileUtils::toAbsolutePath("..").c_str(), "pdal_jl_sys.so");
 }
 
 void Invocation::compile()
@@ -106,7 +98,37 @@ void Invocation::compile()
     // TODO: Check its callable so we fail early
 }
 
-jl_array_t* Invocation::prepareData(PointViewPtr& view)
+// Mapping from PDAL types to Julia array types
+jl_value_t* Invocation::determine_jl_type(const Dimension::Detail* dd) 
+{
+    const Dimension::Type type = dd->type();
+    switch (type) {
+			case Dimension::Type::Unsigned8:
+					return jl_apply_array_type((jl_value_t*) jl_uint8_type, 1);
+			case Dimension::Type::Signed8:
+					return jl_apply_array_type((jl_value_t*) jl_int8_type, 1);
+			case Dimension::Type::Unsigned16:
+					return jl_apply_array_type((jl_value_t*) jl_uint16_type, 1);
+			case Dimension::Type::Signed16:
+					return jl_apply_array_type((jl_value_t*) jl_int16_type, 1);
+			case Dimension::Type::Unsigned32:
+					return jl_apply_array_type((jl_value_t*) jl_uint32_type, 1);
+			case Dimension::Type::Signed32:
+					return jl_apply_array_type((jl_value_t*) jl_int32_type, 1);
+			case Dimension::Type::Unsigned64:
+					return jl_apply_array_type((jl_value_t*) jl_uint64_type, 1);
+			case Dimension::Type::Signed64:
+					return jl_apply_array_type((jl_value_t*) jl_int64_type, 1);
+			case Dimension::Type::Float:
+					return jl_apply_array_type((jl_value_t*) jl_float32_type, 1);
+			case Dimension::Type::Double:
+					return jl_apply_array_type((jl_value_t*) jl_float64_type, 1);
+      default:
+        std::cout << "Unsupported type: " << type << "\n";
+    }
+}
+
+jl_array_t* Invocation::prepare_data(PointViewPtr& view)
 {
     PointLayoutPtr layout(view->table().layout());
     Dimension::IdList const& dims = layout->dims();
@@ -130,11 +152,9 @@ jl_array_t* Invocation::prepareData(PointViewPtr& view)
         const Dimension::Detail *dd = layout->dimDetail(d);
         const Dimension::Type type = dd->type();
 
-        // Ignore non-floats for now
-        // TODO: Fix this!
-        if (dd->size() != 8) {
-          continue;
-        }
+        std::cout << type << "\n";
+        std::cout << dd->size() << "\n";
+        std::cout << layout->dimName(*di) << "\n";
 
         m_numDims++;
         void *data = malloc(dd->size() * view->size());
@@ -145,13 +165,10 @@ jl_array_t* Invocation::prepareData(PointViewPtr& view)
             p += dd->size();
         }
 
-        if (dd->size() == 8) {
-          jl_value_t* array_type = jl_apply_array_type((jl_value_t*) jl_float64_type, 1);
-          jl_array_t* array_ptr = jl_ptr_to_array_1d(array_type, data, view->size(), 0);
-          // Add the array to the array of arguments
-          jl_array_ptr_1d_push(arg_array, (jl_value_t*) array_ptr);
-        }
-        // TODO: Handle other datatypes
+        // Add the array to the array of arguments
+        jl_value_t* array_type = determine_jl_type(dd);
+        jl_array_t* array_ptr = jl_ptr_to_array_1d(array_type, data, view->size(), 0);
+        jl_array_ptr_1d_push(arg_array, (jl_value_t*) array_ptr);
 
         std::string name = layout->dimName(*di);
         m_dimNames.push_back(name);
@@ -207,7 +224,7 @@ bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
 {
   // Get the array of arrays representing the PointCloud dimensions ready to be passed into the
   // Julia interpreter
-  jl_array_t * julia_args = prepareData(view);
+  jl_array_t * julia_args = prepare_data(view);
 
   // Immediately re-protect the args array from the Julia GC
   JL_GC_PUSH1(&julia_args);
@@ -249,20 +266,8 @@ bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
 
       Dimension::Id d = layout->findDim(dim_name_str);
       const Dimension::Detail *dd = layout->dimDetail(d);
-      assert(dd->size() == 8); // floats have a size of 8
 
-      // TODO: Handle other data types here
-      if (jl_array_eltype(arr) == jl_float64_type) {
-        // Get array pointer
-        double *ptr = (double *) jl_array_data(arr);
-        // Get number of points
-        int point_num = jl_array_dim0(arr);
-
-        // Copy each point into the PDAL view
-        for (PointId idx = 0; idx < point_num; ++idx) {
-          view->setField(d, idx, ptr[idx]);
-        }
-      }
+      unpack_array_into_pdal_view(arr, view, d);
   }
 
   // Critically important: you must pair a POP with every PUSH
@@ -272,6 +277,85 @@ bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
 
   // TODO: This needs to be called at the very end (not here as this is run for every point cloud view)
   // jl_atexit_hook(0);
+}
+
+void Invocation::unpack_array_into_pdal_view(jl_value_t* arr, PointViewPtr& view, Dimension::Id d)
+{
+  int num_points = jl_array_dim0(arr);
+
+  if (jl_array_eltype(arr) == jl_uint8_type) {
+      uint8_t *ptr = (uint8_t *) jl_array_data(arr);
+
+      for (PointId idx = 0; idx < num_points; ++idx) {
+          view->setField(d, idx, ptr[idx]);
+      }
+  }
+  else if (jl_array_eltype(arr) == jl_int8_type) {
+      int8_t *ptr = (int8_t *) jl_array_data(arr);
+
+      for (PointId idx = 0; idx < num_points; ++idx) {
+          view->setField(d, idx, ptr[idx]);
+      }
+  }
+  else if (jl_array_eltype(arr) == jl_uint16_type) {
+      uint16_t *ptr = (uint16_t *) jl_array_data(arr);
+
+      for (PointId idx = 0; idx < num_points; ++idx) {
+          view->setField(d, idx, ptr[idx]);
+      }
+  }
+  else if (jl_array_eltype(arr) == jl_int16_type) {
+      int16_t *ptr = (int16_t *) jl_array_data(arr);
+
+      for (PointId idx = 0; idx < num_points; ++idx) {
+          view->setField(d, idx, ptr[idx]);
+      }
+  }
+  else if (jl_array_eltype(arr) == jl_uint32_type) {
+      uint32_t *ptr = (uint32_t *) jl_array_data(arr);
+
+      for (PointId idx = 0; idx < num_points; ++idx) {
+          view->setField(d, idx, ptr[idx]);
+      }
+  }
+  else if (jl_array_eltype(arr) == jl_int32_type) {
+      int32_t *ptr = (int32_t *) jl_array_data(arr);
+
+      for (PointId idx = 0; idx < num_points; ++idx) {
+          view->setField(d, idx, ptr[idx]);
+      }
+  }
+  else if (jl_array_eltype(arr) == jl_uint64_type) {
+      uint64_t *ptr = (uint64_t *) jl_array_data(arr);
+
+      for (PointId idx = 0; idx < num_points; ++idx) {
+          view->setField(d, idx, ptr[idx]);
+      }
+  }
+  else if (jl_array_eltype(arr) == jl_int64_type) {
+      int64_t *ptr = (int64_t *) jl_array_data(arr);
+
+      for (PointId idx = 0; idx < num_points; ++idx) {
+          view->setField(d, idx, ptr[idx]);
+      }
+  }
+  else if (jl_array_eltype(arr) == jl_float32_type) {
+      float *ptr = (float *) jl_array_data(arr);
+
+      for (PointId idx = 0; idx < num_points; ++idx) {
+          view->setField(d, idx, ptr[idx]);
+      }
+  }
+  else if (jl_array_eltype(arr) == jl_float64_type) {
+      double *ptr = (double *) jl_array_data(arr);
+
+      for (PointId idx = 0; idx < num_points; ++idx) {
+          view->setField(d, idx, ptr[idx]);
+      }
+  }
+  else {
+    std::cout << "Unsupported type returned from Julia" << "\n";
+  }
 }
 
 } // namespace jlang

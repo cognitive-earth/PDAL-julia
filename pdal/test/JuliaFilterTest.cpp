@@ -83,7 +83,7 @@ TEST_F(JuliaFilterTest, JuliaFilterTest_test1)
     // Can use 3rd party deps in the submitted src
     Option source("source", "module MyModule\n"
                    "using TypedTables\n"
-                   "using RoamesGeometry\n"
+                   // "using RoamesGeometry\n"
                    "  function myfunc(input)\n"
                    "    return input\n"
                    "  end\n"
@@ -114,6 +114,7 @@ TEST_F(JuliaFilterTest, JuliaFilterTest_test1)
     const stats::Summary& statsX = stats->getStats(Dimension::Id::X);
     const stats::Summary& statsY = stats->getStats(Dimension::Id::Y);
     const stats::Summary& statsZ = stats->getStats(Dimension::Id::Z);
+    const stats::Summary& statsOffsetTime = stats->getStats(Dimension::Id::OffsetTime);
 
     // Data is passed directly through identity filter
     EXPECT_DOUBLE_EQ(statsX.minimum(), 0.0);
@@ -124,6 +125,9 @@ TEST_F(JuliaFilterTest, JuliaFilterTest_test1)
 
     EXPECT_DOUBLE_EQ(statsZ.minimum(), 0.0);
     EXPECT_DOUBLE_EQ(statsZ.maximum(), 11.0);
+
+    EXPECT_EQ(statsOffsetTime.minimum(), 0);
+    EXPECT_EQ(statsOffsetTime.maximum(), 9);
 }
 
 TEST_F(JuliaFilterTest, JuliaFilterTest_test2)
@@ -174,6 +178,7 @@ TEST_F(JuliaFilterTest, JuliaFilterTest_test2)
     const stats::Summary& statsX = stats->getStats(Dimension::Id::X);
     const stats::Summary& statsY = stats->getStats(Dimension::Id::Y);
     const stats::Summary& statsZ = stats->getStats(Dimension::Id::Z);
+    const stats::Summary& statsOffsetTime = stats->getStats(Dimension::Id::OffsetTime);
 
     // Filter overwrites X and Y values of each row
     EXPECT_DOUBLE_EQ(statsX.minimum(), 99.0);
@@ -184,5 +189,8 @@ TEST_F(JuliaFilterTest, JuliaFilterTest_test2)
 
     EXPECT_DOUBLE_EQ(statsZ.minimum(), 0.0);
     EXPECT_DOUBLE_EQ(statsZ.maximum(), 11.0);
+
+    EXPECT_EQ(statsOffsetTime.minimum(), 0);
+    EXPECT_EQ(statsOffsetTime.maximum(), 9);
 }
 
