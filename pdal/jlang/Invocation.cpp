@@ -82,7 +82,10 @@ void Invocation::initialise()
 
     // Load Julia with packages precompiled into a custom sysimage. This makes packaging easier,
     // and allows quick startup of the interpreter.
-    jl_init_with_image(FileUtils::toAbsolutePath(".").c_str(), "pdal_jl_sys.so");
+    std::string driver_path;
+    Utils::getenv("PDAL_DRIVER_PATH", driver_path);
+
+    jl_init_with_image(driver_path.c_str(), "pdal_jl_sys.so");
 }
 
 void Invocation::compile()

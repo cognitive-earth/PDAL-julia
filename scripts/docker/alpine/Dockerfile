@@ -3,6 +3,7 @@ FROM pdal/alpinebase:latest as pdal_builder
 
 ENV JULIA_PATH /usr/local/julia
 ENV PATH $JULIA_PATH/bin:$PATH
+ENV PDAL_DRIVER_PATH=/usr/local/lib/
 
 # Copy the Julia binary into the PDAL image
 COPY --from=julia_builder /usr/local/julia /usr/local/julia
@@ -46,8 +47,8 @@ RUN    \
     cd pdal; \
     cmake . -G Ninja; \
     ninja; \
-    cp ~/PDAL-julia/pdal/libpdal_plugin_filter_julia.so /usr/local/lib; \
-    cp ~/PDAL-julia/pdal/pdal_jl_sys.so /usr/local/lib;
+    cp ~/PDAL-julia/pdal/libpdal_plugin_filter_julia.so $PDAL_DRIVER_PATH; \
+    cp ~/PDAL-julia/pdal/pdal_jl_sys.so $PDAL_DRIVER_PATH;
 
 # Install PDAL (with the Julia plugin copied in)
 # RUN    \
@@ -59,10 +60,15 @@ RUN    \
     # ls ./lib; \
     # ls /usr/local/lib/; \
 
-RUN pdal translate ~/PDAL-julia/pdal/test/data/1.2-with-color.las julia-out.las julia \
-  --filters.julia.script=~/PDAL-julia/pdal/test/data/test1.jl \
-  --filters.julia.module="TestModule" \
-  --filters.julia.function="fff"
+
+# RUN ls //usr/local/lib;
+# RUN ls //usr/local/julia/lib;
+
+RUN    \
+  pdal translate /root/PDAL-julia/pdal/test/data/1.2-with-color.las ./julia-out.las julia \
+    --filters.julia.script=/root/PDAL-julia/pdal/test/data/test1.jl \
+    --filters.julia.module="TestModule" \
+    --filters.julia.function="fff";
 
 RUN    \
     rm -rf ~/pdal; \
