@@ -47,22 +47,14 @@ RUN    \
     cd pdal; \
     cmake . -G Ninja; \
     ninja; \
-    cp ~/PDAL-julia/pdal/libpdal_plugin_filter_julia.so $PDAL_DRIVER_PATH; \
-    cp ~/PDAL-julia/pdal/pdal_jl_sys.so $PDAL_DRIVER_PATH;
+    ./julia_filter_test; \
+    cp ./libpdal_plugin_filter_julia.so $PDAL_DRIVER_PATH; \
+    cp ./pdal_jl_sys.so $PDAL_DRIVER_PATH;
 
-# Install PDAL (with the Julia plugin copied in)
-# RUN    \
-    # cp ~/PDAL-julia/pdal/libpdal_plugin_filter_julia.so ./lib; \
-    # cp ~/PDAL-julia/pdal_jl_sys.so ..; \
-    # \
-    # cd ~/pdal/build; \
-    # ninja install; \
-    # ls ./lib; \
-    # ls /usr/local/lib/; \
+# Run the 
+RUN cd ~/PDAL-julia/pdal; ./julia_filter_test;
 
-
-# RUN ls //usr/local/lib;
-# RUN ls //usr/local/julia/lib;
+RUN echo $PDAL_DRIVER_PATH;
 
 RUN    \
   pdal translate /root/PDAL-julia/pdal/test/data/1.2-with-color.las ./julia-out.las julia \

@@ -85,7 +85,8 @@ void Invocation::initialise()
     std::string driver_path;
     Utils::getenv("PDAL_DRIVER_PATH", driver_path);
 
-    jl_init_with_image(driver_path.c_str(), "pdal_jl_sys.so");
+    // jl_init_with_image(driver_path.c_str(), "pdal_jl_sys.so");
+    jl_init();
 }
 
 void Invocation::compile()
