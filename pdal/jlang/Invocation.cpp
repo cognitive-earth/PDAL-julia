@@ -82,7 +82,7 @@ void Invocation::initialise()
 
     // Load Julia with packages precompiled into a custom sysimage. This makes packaging easier,
     // and allows quick startup of the interpreter.
-    jl_init_with_image(FileUtils::toAbsolutePath("..").c_str(), "pdal_jl_sys.so");
+    jl_init_with_image(FileUtils::toAbsolutePath(".").c_str(), "pdal_jl_sys.so");
 }
 
 void Invocation::compile()
@@ -152,9 +152,9 @@ jl_array_t* Invocation::prepare_data(PointViewPtr& view)
         const Dimension::Detail *dd = layout->dimDetail(d);
         const Dimension::Type type = dd->type();
 
-        std::cout << type << "\n";
-        std::cout << dd->size() << "\n";
-        std::cout << layout->dimName(*di) << "\n";
+        // std::cout << type << "\n";
+        // std::cout << dd->size() << "\n";
+        // std::cout << layout->dimName(*di) << "\n";
 
         m_numDims++;
         void *data = malloc(dd->size() * view->size());

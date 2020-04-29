@@ -13,19 +13,10 @@ COPY --from=julia_builder /usr/local/julia /usr/local/julia
 #         git checkout $VERSION; \
 #     fi
 
-# Build the PDAL-julia plugin
+# Clone and build PDAL 
 RUN    \
-    git clone https://github.com/cognitive-earth/PDAL-julia.git --branch master --single-branch ~/PDAL-julia; \
-    cd ~/PDAL-julia; \
-    julia build_sys.jl; \
-    cd pdal; \
-    cmake .; \
-    make;
-
-# Install PDAL and copy dynamic library into the lib folder
-RUN    \
-    git clone https://github.com/PDAL/PDAL.git --branch master --single-branch pdal; \
-    cd pdal; \
+    git clone https://github.com/PDAL/PDAL.git --branch master --single-branch ~/pdal; \
+    cd ~/pdal; \
     mkdir build; \
     cd build; \
     cmake .. \
@@ -45,15 +36,37 @@ RUN    \
         -DCMAKE_INSTALL_PREFIX=/usr/local \
         -DCMAKE_INSTALL_LIBDIR=lib \
         ; \
-    \
-    cp ~/PDAL-julia/pdal/libpdal_plugin_filter_julia.so ./lib; \
-    cp -R ~/PDAL-julia/jl ../jl; \
-    cp ~/PDAL-julia/pdal_jl_sys.so ..; \
-    \
-    ninja install; \
-    cd /; \
-    rm -rf pdal; \
-    \
+    ninja install;
+
+# Build dynamic library and copy into /usr/local/lib for detection by PDAL
+RUN    \
+    git clone https://github.com/cognitive-earth/PDAL-julia.git --branch master --single-branch ~/PDAL-julia; \
+    cd ~/PDAL-julia; \
+    julia build_sys.jl; \
+    cd pdal; \
+    cmake . -G Ninja; \
+    ninja; \
+    cp ~/PDAL-julia/pdal/libpdal_plugin_filter_julia.so /usr/local/lib; \
+    cp ~/PDAL-julia/pdal/pdal_jl_sys.so /usr/local/lib;
+
+# Install PDAL (with the Julia plugin copied in)
+# RUN    \
+    # cp ~/PDAL-julia/pdal/libpdal_plugin_filter_julia.so ./lib; \
+    # cp ~/PDAL-julia/pdal_jl_sys.so ..; \
+    # \
+    # cd ~/pdal/build; \
+    # ninja install; \
+    # ls ./lib; \
+    # ls /usr/local/lib/; \
+
+RUN pdal translate ~/PDAL-julia/pdal/test/data/1.2-with-color.las julia-out.las julia \
+  --filters.julia.script=~/PDAL-julia/pdal/test/data/test1.jl \
+  --filters.julia.module="TestModule" \
+  --filters.julia.function="fff"
+
+RUN    \
+    rm -rf ~/pdal; \
+    rm -rf ~/PDAL-julia; \
     apk del \
         git \
         cmake \
@@ -66,7 +79,9 @@ RUN    \
     rm /usr/bin/ogr*; \
     rm /usr/bin/h5*;
 
+
 FROM alpine:3.11
 
 COPY --from=pdal_builder /usr/ /usr/
 COPY --from=pdal_builder /lib/ /lib/
+

@@ -107,8 +107,7 @@ We make the following packages available by default
 - [x] Runnable unit test for new PDAL filter
 - [x] POC of passing Point Cloud data into Julia script (X,Y,Z dims at least)
 - [x]  Design interface for Julia scripts
-- []  Include useful Julia libraries for use by submitted script
-  > start using docker to figure out how portable it is
+- [x]  Include useful Julia libraries for use by submitted script
 - [x]  Wrapper (in Julia) to convert from array of c++ arrays (one per dim) to rich Julia type and pass into function
 - [x]  Wrapper (in Julia/C++) to convert from rich Julia return type to array of c++ arrays
 - [x]  Pass results of Julia filter back into PDAL interface

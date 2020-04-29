@@ -13,4 +13,7 @@ pdal/cmake_install.cmake
 pdal/Makefile
 pdal/googletest*
 
+.ninja*
+*.ninja
+
 pdal/julia_filter_test
