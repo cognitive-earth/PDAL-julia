@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11.0)
+cmake_minimum_required(VERSION 3.10.0)
 project(pdal)
 
 include(${PROJECT_SOURCE_DIR}/cmake/macros.cmake)
