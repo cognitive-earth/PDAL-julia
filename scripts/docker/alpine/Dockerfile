@@ -3,10 +3,15 @@ FROM pdal/alpinebase:latest as pdal_builder
 
 ENV JULIA_PATH /usr/local/julia
 ENV PATH $JULIA_PATH/bin:$PATH
-ENV PDAL_DRIVER_PATH=/usr/local/lib/
+ENV PDAL_DRIVER_PATH /usr/local/lib:$PDAL_DRIVER_PATH
+ENV PDAL_DRIVER_PATH $JULIA_PATH/lib:$PDAL_DRIVER_PATH
+ENV PDAL_JULIA_RUNTIME_PATH $JULIA_PATH/lib
 
 # Copy the Julia binary into the PDAL image
 COPY --from=julia_builder /usr/local/julia $JULIA_PATH
+
+# TODO: SYMLINK this
+# RUN ln -s $JULIA_PATH/lib/julia/* $JULIA_PATH/lib;
 
 # Copy julia dependency libraries into path where the embedded Julia runtime can access them
 RUN cp $JULIA_PATH/lib/julia/* $JULIA_PATH/lib;
@@ -49,28 +54,29 @@ RUN    \
         -DCMAKE_INSTALL_LIBDIR=lib \
         ; \
     ninja install; \
-    cp ./libpdal_plugin_filter_julia.so $PDAL_DRIVER_PATH;
-    # cp ./pdal_jl_sys.so $PDAL_DRIVER_PATH; \
+    cp ./libpdal_plugin_filter_julia.so $PDAL_DRIVER_PATH; \
+    cp ./pdal_jl_sys.so $PDAL_DRIVER_PATH; \
+    cp ../../jl/PdalJulia.jl $PDAL_JULIA_RUNTIME_PATH; \
 
+# Move julia libs so PDAL can access them
+RUN cp $JULIA_PATH/lib/julia/* /usr/local/lib;
 
 # Run PDAL-julia test suite
-RUN cd ~/PDAL-julia/pdal; ./build/julia_filter_test;
+RUN ~/PDAL-julia/pdal/build/julia_filter_test;
 
 # TODO: So far, we can't run the filter unless we're in the ~/PDAL-julia/pdal folder
 #
 # This prevents us from just copying the pdal and julia lib/bin folders across to another
 # image and using them without all the mess here
+
 RUN    \
-  cd ~/PDAL-julia/pdal; \
-  cp $JULIA_PATH/lib/julia/* /usr/local/lib; \
   pdal translate /root/PDAL-julia/pdal/test/data/1.2-with-color.las ./julia-out.las julia \
     --filters.julia.script=/root/PDAL-julia/pdal/test/data/test1.jl \
     --filters.julia.module="TestModule" \
     --filters.julia.function="fff";
 
+# Remove all the extra cruft from /usr and /lib before they are copied into the final image
 # RUN    \
-#     rm -rf ~/pdal; \
-#     rm -rf ~/PDAL-julia; \
 #     apk del \
 #         git \
 #         cmake \
@@ -89,6 +95,11 @@ FROM alpine:3.11
 COPY --from=pdal_builder /usr/ /usr/
 COPY --from=pdal_builder /lib/ /lib/
 COPY --from=pdal_builder /root/PDAL-julia/pdal/test/data/ /tmp/data/
+
+ENV JULIA_PATH /usr/local/julia
+ENV PATH $JULIA_PATH/bin:$PATH
+ENV PDAL_DRIVER_PATH /usr/local/lib/
+ENV PDAL_JULIA_RUNTIME_PATH $JULIA_PATH/lib
 
 # Fails to find the shared libraries for Julia as we're not in ~/PDAL-julia/pdal (and we dont want it in this image)
 RUN    \

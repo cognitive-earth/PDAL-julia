@@ -85,13 +85,26 @@ void Invocation::initialise()
     std::string driver_path;
     Utils::getenv("PDAL_DRIVER_PATH", driver_path);
 
-    // jl_init_with_image(driver_path.c_str(), "pdal_jl_sys.so");
-    jl_init();
+    jl_init_with_image(driver_path.c_str(), "pdal_jl_sys.so");
+    // jl_init();
 }
 
 void Invocation::compile()
 {
-    std::string wrapperModuleSrc = FileUtils::readFileIntoString(FileUtils::toAbsolutePath("../jl/PdalJulia.jl"));
+    std::string runtime_path;
+    Utils::getenv("PDAL_JULIA_RUNTIME_PATH", runtime_path);
+
+    // For local dev
+    if (runtime_path == "") {
+      runtime_path = "../jl";
+    }
+
+    std::string wrapperModuleSrc = FileUtils::readFileIntoString(runtime_path + "/PdalJulia.jl");
+    if (wrapperModuleSrc == "") {
+        std::cerr << "Unable to find PdalJulia.jl runtime file at: " << runtime_path;
+        exit(1);
+    }
+
     jl_eval_string(wrapperModuleSrc.c_str());
     m_wrapperMod = (jl_value_t*) jl_eval_string("PdalJulia");
 
