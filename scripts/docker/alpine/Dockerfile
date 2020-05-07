@@ -2,19 +2,15 @@ FROM fredrikekre/julia-alpine:1.4.1 as julia_builder
 FROM pdal/alpinebase:latest as pdal_builder
 
 ENV JULIA_PATH /usr/local/julia
-ENV PATH $JULIA_PATH/bin:$PATH
-ENV PDAL_DRIVER_PATH /usr/local/lib:$PDAL_DRIVER_PATH
-ENV PDAL_DRIVER_PATH $JULIA_PATH/lib:$PDAL_DRIVER_PATH
+ENV PDAL_DRIVER_PATH /usr/local/lib
 ENV PDAL_JULIA_RUNTIME_PATH $JULIA_PATH/lib
+ENV PATH $JULIA_PATH/bin:$PATH
 
 # Copy the Julia binary into the PDAL image
 COPY --from=julia_builder /usr/local/julia $JULIA_PATH
 
-# TODO: SYMLINK this
-# RUN ln -s $JULIA_PATH/lib/julia/* $JULIA_PATH/lib;
-
-# Copy julia dependency libraries into path where the embedded Julia runtime can access them
-RUN cp $JULIA_PATH/lib/julia/* $JULIA_PATH/lib;
+# Symlink the julia dependencies into a path where the embedded Julia runtime can access them
+RUN ln -s $JULIA_PATH/lib/julia/* $JULIA_PATH/lib;
 
 # Clone and build PDAL 
 RUN    \
@@ -41,33 +37,40 @@ RUN    \
         ; \
     ninja install;
 
-# Build dynamic library and copy into /usr/local/lib for detection by PDAL
+# Build dynamic library and copy relevant artifacts into /usr/local/lib for detection by PDAL
 RUN    \
     git clone https://github.com/cognitive-earth/PDAL-julia.git --branch master --single-branch ~/PDAL-julia; \
     cd ~/PDAL-julia; \
-    julia build_sys.jl; \
-    cd ~/PDAL-julia; \
-    mkdir pdal/build; \
-    cd pdal/build; \
-    cmake .. -G Ninja \
+    julia build_sys.jl;
+
+RUN    \
+    cd ~/PDAL-julia/pdal; \
+    cmake . -G Ninja \
         -DCMAKE_INSTALL_PREFIX=/usr/local \
         -DCMAKE_INSTALL_LIBDIR=lib \
         ; \
     ninja install; \
     cp ./libpdal_plugin_filter_julia.so $PDAL_DRIVER_PATH; \
     cp ./pdal_jl_sys.so $PDAL_DRIVER_PATH; \
-    cp ../../jl/PdalJulia.jl $PDAL_JULIA_RUNTIME_PATH; \
+    cp ../jl/PdalJulia.jl $PDAL_JULIA_RUNTIME_PATH; \
+    ./julia_filter_test;
 
-# Move julia libs so PDAL can access them
-RUN cp $JULIA_PATH/lib/julia/* /usr/local/lib;
+# Symlink julia libs into PDAL_DRIVER_PATH so PDAL can access them
+RUN ln -s $JULIA_PATH/lib/julia/* $PDAL_DRIVER_PATH;
 
-# Run PDAL-julia test suite
-RUN ~/PDAL-julia/pdal/build/julia_filter_test;
-
-# TODO: So far, we can't run the filter unless we're in the ~/PDAL-julia/pdal folder
-#
-# This prevents us from just copying the pdal and julia lib/bin folders across to another
-# image and using them without all the mess here
+# Remove all the extra cruft from /usr and /lib before they are copied into the final image
+RUN    \
+    apk del \
+        git \
+        cmake \
+        ninja \
+        g++ \
+    ; \
+    rm -rf /usr/share/hdf5_examples; \
+    rm /usr/lib/*.a; \
+    rm /usr/bin/gdal*; \
+    rm /usr/bin/ogr*; \
+    rm /usr/bin/h5*;
 
 RUN    \
   pdal translate /root/PDAL-julia/pdal/test/data/1.2-with-color.las ./julia-out.las julia \
@@ -75,33 +78,28 @@ RUN    \
     --filters.julia.module="TestModule" \
     --filters.julia.function="fff";
 
-# Remove all the extra cruft from /usr and /lib before they are copied into the final image
-# RUN    \
-#     apk del \
-#         git \
-#         cmake \
-#         ninja \
-#         g++ \
-#     ; \
-#     rm -rf /usr/share/hdf5_examples; \
-#     rm /usr/lib/*.a; \
-#     rm /usr/bin/gdal*; \
-#     rm /usr/bin/ogr*; \
-#     rm /usr/bin/h5*;
+# RUN pdal info ./julia-out.las;
 
 # Finally, construct a minimal image with the filter available
-FROM alpine:3.11
+FROM pdal/alpinebase:latest
 
 COPY --from=pdal_builder /usr/ /usr/
 COPY --from=pdal_builder /lib/ /lib/
 COPY --from=pdal_builder /root/PDAL-julia/pdal/test/data/ /tmp/data/
 
 ENV JULIA_PATH /usr/local/julia
-ENV PATH $JULIA_PATH/bin:$PATH
-ENV PDAL_DRIVER_PATH /usr/local/lib/
+ENV PDAL_DRIVER_PATH /usr/local/lib
 ENV PDAL_JULIA_RUNTIME_PATH $JULIA_PATH/lib
+ENV PATH $JULIA_PATH/bin:$PATH
 
-# Fails to find the shared libraries for Julia as we're not in ~/PDAL-julia/pdal (and we dont want it in this image)
+RUN apk add strace;
+
+# Copy the Julia binary into the PDAL image
+COPY --from=julia_builder /usr/local/julia $JULIA_PATH
+
+# Symlink the julia dependencies into a path where the embedded Julia runtime can access them
+# RUN ln -s $JULIA_PATH/lib/julia/* $JULIA_PATH/lib;
+
 RUN    \
   pdal translate /tmp/data/1.2-with-color.las ./julia-out.las julia \
     --filters.julia.script=/tmp/data/test1.jl \

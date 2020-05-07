@@ -110,6 +110,7 @@ void Invocation::compile()
 
     // Initialise user-supplied script
     jl_eval_string(m_script.source());
+    std::cout << "Loading user script: " << m_script.source();
     jl_value_t * mod = (jl_value_t*) jl_eval_string(m_script.module());
     m_function = jl_get_function((jl_module_t*) mod, m_script.function());
     // TODO: Check its callable so we fail early
@@ -239,15 +240,22 @@ jl_array_t* Invocation::prepare_data(PointViewPtr& view)
 
 bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
 {
+  std::cout << "Exec";
   // Get the array of arrays representing the PointCloud dimensions ready to be passed into the
   // Julia interpreter
   jl_array_t * julia_args = prepare_data(view);
 
+  std::cout << "Data prepped";
+
   // Immediately re-protect the args array from the Julia GC
   JL_GC_PUSH1(&julia_args);
 
+  std::cout << "Data pushed";
+
   // Add the user-supplied function as the final argument
   jl_array_ptr_1d_push(julia_args, (jl_value_t *) m_function);
+
+  std::cout << "User fn pushed";
 
   // Run the Julia runtime function "runStage" which:
   //
@@ -256,6 +264,8 @@ bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
   // 3. Unpacks the returned `TypedTable` into an array of arrays of dimensions, with the final
   //    array being the strings of the dimensions in order as they preceded it in the array
   jl_function_t* run_stage_fn = jl_get_function((jl_module_t*) m_wrapperMod, "runStage");
+
+  std::cout << "Got fn";
 
   jl_array_t *wrapped_pc = (jl_array_t*) jl_call1(run_stage_fn, (jl_value_t*) julia_args);
   if (jl_exception_occurred())

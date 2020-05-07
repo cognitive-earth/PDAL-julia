@@ -17,3 +17,4 @@ pdal/googletest*
 *.ninja
 
 pdal/julia_filter_test
+*.gpg
