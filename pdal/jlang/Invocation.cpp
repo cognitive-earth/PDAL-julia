@@ -86,7 +86,6 @@ void Invocation::initialise()
     Utils::getenv("PDAL_DRIVER_PATH", driver_path);
 
     jl_init_with_image(driver_path.c_str(), "pdal_jl_sys.so");
-    // jl_init();
 }
 
 void Invocation::compile()
@@ -110,13 +109,11 @@ void Invocation::compile()
 
     // Initialise user-supplied script
     jl_eval_string(m_script.source());
-    std::cout << "Loading user script: " << m_script.source() << "\n";
     jl_value_t * mod = (jl_value_t*) jl_eval_string(m_script.module());
     m_function = jl_get_function((jl_module_t*) mod, m_script.function());
-
-    std::cout << "Loaded user script\n";
     if (jl_exception_occurred())
-        std::cout << "Julia Error in user script load: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
+        std::cerr << "Julia Error in user script load: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
+        exit(1);
 
     // TODO: Check its callable so we fail early
 }
@@ -147,7 +144,8 @@ jl_value_t* Invocation::determine_jl_type(const Dimension::Detail* dd)
 			case Dimension::Type::Double:
 					return jl_apply_array_type((jl_value_t*) jl_float64_type, 1);
       default:
-        std::cout << "Unsupported type: " << type << "\n";
+        std::cerr << "Unsupported type: " << type << "\n";
+        exit(1);
     }
 }
 
@@ -174,10 +172,6 @@ jl_array_t* Invocation::prepare_data(PointViewPtr& view)
         Dimension::Id d = *di;
         const Dimension::Detail *dd = layout->dimDetail(d);
         const Dimension::Type type = dd->type();
-
-        // std::cout << type << "\n";
-        // std::cout << dd->size() << "\n";
-        // std::cout << layout->dimName(*di) << "\n";
 
         m_numDims++;
         void *data = malloc(dd->size() * view->size());
@@ -245,22 +239,15 @@ jl_array_t* Invocation::prepare_data(PointViewPtr& view)
 
 bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
 {
-  std::cout << "Exec";
   // Get the array of arrays representing the PointCloud dimensions ready to be passed into the
   // Julia interpreter
   jl_array_t * julia_args = prepare_data(view);
 
-  std::cout << "Data prepped";
-
   // Immediately re-protect the args array from the Julia GC
   JL_GC_PUSH1(&julia_args);
 
-  std::cout << "Data pushed";
-
   // Add the user-supplied function as the final argument
   jl_array_ptr_1d_push(julia_args, (jl_value_t *) m_function);
-
-  std::cout << "User fn pushed";
 
   // Run the Julia runtime function "runStage" which:
   //
@@ -270,11 +257,10 @@ bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
   //    array being the strings of the dimensions in order as they preceded it in the array
   jl_function_t* run_stage_fn = jl_get_function((jl_module_t*) m_wrapperMod, "runStage");
 
-  std::cout << "Got fn";
-
   jl_array_t *wrapped_pc = (jl_array_t*) jl_call1(run_stage_fn, (jl_value_t*) julia_args);
   if (jl_exception_occurred())
-      std::cout << "Julia Error in runStage: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
+      std::cerr << "Julia Error in runStage: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
+      exit(1);
 
   //
   // Extract the values out of the Julia wrapped types
@@ -386,7 +372,8 @@ void Invocation::unpack_array_into_pdal_view(jl_value_t* arr, PointViewPtr& view
       }
   }
   else {
-    std::cout << "Unsupported type returned from Julia" << "\n";
+    std::cerr << "Unsupported type returned from Julia" << "\n";
+    exit(1);
   }
 }
 

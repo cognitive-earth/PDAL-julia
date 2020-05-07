@@ -5,11 +5,11 @@ ENV JULIA_PATH /usr/local/julia
 ENV PDAL_DRIVER_PATH /usr/local/lib
 ENV PDAL_JULIA_RUNTIME_PATH $JULIA_PATH/lib
 ENV PATH $JULIA_PATH/bin:$PATH
+ENV JULIA_DEPOT_PATH $JULIA_PATH/packages
 
 # Copy the Julia binary into the PDAL image
 COPY --from=julia_builder /usr/local/julia $JULIA_PATH
-
-# Symlink the julia dependencies into a path where the embedded Julia runtime can access them
+RUN mkdir $JULIA_PATH/packages
 RUN ln -s $JULIA_PATH/lib/julia/* $JULIA_PATH/lib;
 
 # Clone and build PDAL 
@@ -36,8 +36,6 @@ RUN    \
         -DCMAKE_INSTALL_LIBDIR=lib \
         ; \
     ninja install;
-
-RUN echo "refetch"
 
 # Build dynamic library and copy relevant artifacts into /usr/local/lib for detection by PDAL
 RUN    \
@@ -80,30 +78,21 @@ RUN    \
     --filters.julia.module="TestModule" \
     --filters.julia.function="fff";
 
-# RUN pdal info ./julia-out.las;
-
 # Finally, construct a minimal image with the filter available
-FROM pdal/alpinebase:latest
+FROM alpine:latest
 
 COPY --from=pdal_builder /usr/ /usr/
 COPY --from=pdal_builder /lib/ /lib/
-COPY --from=pdal_builder /root/PDAL-julia/pdal/test/data/ /tmp/data/
+# COPY --from=pdal_builder /root/PDAL-julia/pdal/test/data/ /tmp/data/
 
 ENV JULIA_PATH /usr/local/julia
 ENV PDAL_DRIVER_PATH /usr/local/lib
 ENV PDAL_JULIA_RUNTIME_PATH $JULIA_PATH/lib
-ENV PATH $JULIA_PATH/bin:$PATH
+ENV LD_LIBRARY_PATH $PDAL_DRIVER_PATH:$LD_LIBRARY_PATH
+ENV JULIA_DEPOT_PATH $JULIA_PATH/packages
 
-RUN apk add strace;
-
-# Copy the Julia binary into the PDAL image
-COPY --from=julia_builder /usr/local/julia $JULIA_PATH
-
-# Symlink the julia dependencies into a path where the embedded Julia runtime can access them
-# RUN ln -s $JULIA_PATH/lib/julia/* $JULIA_PATH/lib;
-
-RUN    \
-  pdal translate /tmp/data/1.2-with-color.las ./julia-out.las julia \
-    --filters.julia.script=/tmp/data/test1.jl \
-    --filters.julia.module="TestModule" \
-    --filters.julia.function="fff";
+# RUN    \
+#   pdal translate /tmp/data/1.2-with-color.las ./julia-out.las julia \
+#     --filters.julia.script=/tmp/data/test1.jl \
+#     --filters.julia.module="TestModule" \
+#     --filters.julia.function="fff";
