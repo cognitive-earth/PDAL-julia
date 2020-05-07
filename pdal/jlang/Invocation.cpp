@@ -110,9 +110,14 @@ void Invocation::compile()
 
     // Initialise user-supplied script
     jl_eval_string(m_script.source());
-    std::cout << "Loading user script: " << m_script.source();
+    std::cout << "Loading user script: " << m_script.source() << "\n";
     jl_value_t * mod = (jl_value_t*) jl_eval_string(m_script.module());
     m_function = jl_get_function((jl_module_t*) mod, m_script.function());
+
+    std::cout << "Loaded user script\n";
+    if (jl_exception_occurred())
+        std::cout << "Julia Error in user script load: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
+
     // TODO: Check its callable so we fail early
 }
 

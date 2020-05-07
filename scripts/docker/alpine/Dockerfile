@@ -37,6 +37,8 @@ RUN    \
         ; \
     ninja install;
 
+RUN echo "refetch"
+
 # Build dynamic library and copy relevant artifacts into /usr/local/lib for detection by PDAL
 RUN    \
     git clone https://github.com/cognitive-earth/PDAL-julia.git --branch master --single-branch ~/PDAL-julia; \
