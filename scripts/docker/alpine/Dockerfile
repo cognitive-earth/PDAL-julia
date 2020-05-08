@@ -49,7 +49,10 @@ RUN    \
         -DCMAKE_INSTALL_PREFIX=/usr/local \
         -DCMAKE_INSTALL_LIBDIR=lib \
         ; \
-    ninja install; \
+    ninja install;
+
+RUN    \
+    cd ~/PDAL-julia/pdal; \
     cp ./libpdal_plugin_filter_julia.so $PDAL_DRIVER_PATH; \
     cp ./pdal_jl_sys.so $PDAL_DRIVER_PATH; \
     cp ../jl/PdalJulia.jl $PDAL_JULIA_RUNTIME_PATH; \
