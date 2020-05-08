@@ -100,7 +100,7 @@ void Invocation::compile()
 
     std::string wrapperModuleSrc = FileUtils::readFileIntoString(runtime_path + "/PdalJulia.jl");
     if (wrapperModuleSrc == "") {
-        std::cout << "Unable to find PdalJulia.jl runtime file at: " << runtime_path;
+        std::cerr << "Unable to find PdalJulia.jl runtime file at: " << runtime_path;
         exit(1);
     }
 
@@ -111,9 +111,10 @@ void Invocation::compile()
     jl_eval_string(m_script.source());
     jl_value_t * mod = (jl_value_t*) jl_eval_string(m_script.module());
     m_function = jl_get_function((jl_module_t*) mod, m_script.function());
-    if (jl_exception_occurred())
-        std::cout << "Julia Error in user script load: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
+    if (jl_exception_occurred()) {
+        std::cerr << "Julia Error in user script load: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
         exit(1);
+    }
 
     // TODO: Check its callable so we fail early
 }
@@ -144,7 +145,7 @@ jl_value_t* Invocation::determine_jl_type(const Dimension::Detail* dd)
 			case Dimension::Type::Double:
 					return jl_apply_array_type((jl_value_t*) jl_float64_type, 1);
       default:
-        std::cout << "Unsupported type: " << type << "\n";
+        std::cerr << "Unsupported type: " << type << "\n";
         exit(1);
     }
 }
@@ -258,9 +259,10 @@ bool Invocation::execute(PointViewPtr& view, MetadataNode stageMetadata)
   jl_function_t* run_stage_fn = jl_get_function((jl_module_t*) m_wrapperMod, "runStage");
 
   jl_array_t *wrapped_pc = (jl_array_t*) jl_call1(run_stage_fn, (jl_value_t*) julia_args);
-  if (jl_exception_occurred())
-      std::cout << "Julia Error in runStage: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
+  if (jl_exception_occurred()) {
+      std::cerr << "Julia Error in runStage: |" << jl_typeof_str(jl_exception_occurred()) << "|\n";
       exit(1);
+  }
 
   //
   // Extract the values out of the Julia wrapped types
@@ -372,7 +374,7 @@ void Invocation::unpack_array_into_pdal_view(jl_value_t* arr, PointViewPtr& view
       }
   }
   else {
-    std::cout << "Unsupported type returned from Julia" << "\n";
+    std::cerr << "Unsupported type returned from Julia" << "\n";
     exit(1);
   }
 }

@@ -14,7 +14,7 @@ RUN ln -s $JULIA_PATH/lib/julia/* $JULIA_PATH/lib;
 
 # Clone and build PDAL 
 RUN    \
-    git clone https://github.com/PDAL/PDAL.git --branch master --single-branch ~/pdal; \
+    git clone https://github.com/jtfell/PDAL.git --branch jtfell-release --single-branch ~/pdal; \
     cd ~/pdal; \
     mkdir build; \
     cd build; \
