@@ -2,9 +2,12 @@
 
 Embeddable [Julia](https://julialang.org/) Filter stage for PDAL. Inspired by a similar effort for [Python](https://github.com/PDAL/python).
 
+The recommended usage is through the Docker image
+[cognitiveearth/pdal-julia](https://hub.docker.com/repository/docker/cognitiveearth/pdal-julia).
+
 ## Build
 
-It is recommended to use the docker container built with PDAL and this plugin,
+You can build the docker container with PDAL and this plugin,
 
 ```
 docker build scripts/docker/alpine -t pdal-julia
@@ -60,22 +63,18 @@ We make the following packages available by default
 
 - https://github.com/JuliaData/TypedTables.jl
 
+You can test your Julia filters externally to PDAL using the [DevHarness.jl](examples/DevHarness.jl) file:
 
-## Progress
+```
+# Edit the example filter
+vi examples/Example1.jl
 
-- [x] Compile PDAL filter with access to Julia headers and runtime
-- [x] Embedded Julia interpreter inside PDAL filter
-- [x] Compile script once, run for each PointCloudView
-- [x] Runnable unit test for new PDAL filter
-- [x] POC of passing Point Cloud data into Julia script (X,Y,Z dims at least)
-- [x]  Design interface for Julia scripts
-- [x]  Include useful Julia libraries for use by submitted script
-- [x]  Wrapper (in Julia) to convert from array of c++ arrays (one per dim) to rich Julia type and pass into function
-- [x]  Wrapper (in Julia/C++) to convert from rich Julia return type to array of c++ arrays
-- [x]  Pass results of Julia filter back into PDAL interface
-- []  Expose metadata as a global to Julia fn
-- [x]  Support data types other than floats
-- [x]  Run as a filter in PDAL
-- []  Reasonable test coverage
-- [x]  Build Alpine docker image
+# Run it using Julia standalone
+julia examples/DevHarness.jl
+```
+
+## TODOs
+
+- Expose metadata as a global to Julia fn
+- Improve package management story, single scripts not very useful in isolation
 
