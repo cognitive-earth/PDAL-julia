@@ -11,8 +11,12 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
-    - name: Build the Docker image
-      run: docker build scripts/docker/alpine --file scripts/docker/alpine/Dockerfile --tag pdal-julia:$(date +%s)
+    - uses: docker/build-push-action@v1
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+        repository: cognitiveearth/pdal-julia
+        tag_with_ref: true
+        dockerfile: scripts/docker/alpine/Dockerfile
