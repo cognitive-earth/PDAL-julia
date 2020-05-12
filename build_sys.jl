@@ -2,7 +2,7 @@ using Pkg
 
 Pkg.add("PackageCompiler")
 Pkg.add("TypedTables")
-Pkg.add("https://github.com/FugroRoames/RoamesGeometry.jl")
+Pkg.add(PackageSpec(url="https://github.com/FugroRoames/RoamesGeometry.jl"))
 Pkg.add("AcceleratedArrays")
 Pkg.add("StructArrays")
 Pkg.add("StaticArrays")
