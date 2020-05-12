@@ -62,6 +62,10 @@ A point cloud is represented as a Table from TypedTables.jl where the X,Y,Z colu
 We make the following packages available by default
 
 - https://github.com/JuliaData/TypedTables.jl
+- https://github.com/FugroRoames/RoamesGeometry.jl
+- https://github.com/andyferris/AcceleratedArrays.jl
+- https://github.com/JuliaArrays/StructArrays.jl
+- https://github.com/JuliaArrays/StaticArrays.jl
 
 You can test your Julia filters externally to PDAL using the [DevHarness.jl](examples/DevHarness.jl) file:
 
@@ -77,4 +81,5 @@ julia examples/DevHarness.jl
 
 - Expose metadata as a global to Julia fn
 - Improve package management story, single scripts not very useful in isolation
+- add_dimension option
 

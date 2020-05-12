@@ -2,3 +2,7 @@
 #
 
 using TypedTables
+using RoamesGeometry
+using AcceleratedArrays
+using StructArrays
+using StaticArrays
