@@ -80,6 +80,13 @@ RUN    \
     --filters.julia.script=/root/PDAL-julia/pdal/test/data/test1.jl \
     --filters.julia.module="TestModule" \
     --filters.julia.function="fff";
+# RUN    \
+#   pdal translate /root/PDAL-julia/pdal/test/data/1.2-with-color.las ./julia-out.las julia \
+#     --filters.julia.script=/root/PDAL-julia/examples/Example2.jl \
+#     --filters.julia.add_dimension="Num_Points_In_Radius" \
+#     --filters.julia.module="TestModule" \
+#     --filters.julia.function="runFilter";
+
 
 # Finally, construct a minimal image with the filter available
 FROM alpine:latest
