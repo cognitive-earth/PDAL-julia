@@ -1,6 +1,5 @@
 #
-# Adds a new dimension to the Point Cloud "Num_Points_In_Radius" which is the number of 
-# points with 50 "units" of each point.
+# Julia version of https://pdal.io/stages/filters.radialdensity.html
 #
 module TestModule
 
@@ -11,25 +10,29 @@ module TestModule
   using TypedTables
 
   # The radius to look in
-  radius = 50
+  radius = 5.0
+  factor = 1.0 / ((4.0 / 3.0) * 3.14159 * (radius * radius * radius))
 
   function runFilter(ins)
-
     # Create accelerated array for spatial lookups
     positions = accelerate(
       StructArray(SVector{3, Float64}(r.X, r.Y, r.Z) for r in ins),
       GridIndex;
-      spacing = 5.0
+      spacing = radius * 1.5 # TODO: What is a good ratio here?
     )
 
-    # Per point operation to be run inside a map
+    # Per point operation
     function find_nearby_points(point, points)
-      padded_bbox = RoamesGeometry.pad(RoamesGeometry.boundingbox(point), radius)
-      return RoamesGeometry.findall(RoamesGeometry.in(padded_bbox), points)
+      padded_sphere = RoamesGeometry.boundingbox(Sphere(point, radius))
+      return RoamesGeometry.findall(RoamesGeometry.in(padded_sphere), points)
     end
 
-    nearby_points_arr = map(position -> length(find_nearby_points(position, positions)), positions)
-    return merge(columns(ins), (Num_Points_In_Radius=nearby_points_arr,))
+    for i in 1:length(positions)
+      position = positions[i]
+      ins[i] = merge(ins[i], (;RadialDensity=factor * length(find_nearby_points(position, positions))))
+    end
+
+    return ins;
   end
 
 end # module

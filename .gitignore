@@ -12,6 +12,7 @@ pdal/CMakeCache.txt
 pdal/cmake_install.cmake
 pdal/Makefile
 pdal/googletest*
+pdal/build/*
 
 .ninja*
 *.ninja

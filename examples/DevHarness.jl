@@ -26,6 +26,7 @@ if length(ARGS) == 2
       R = map(p -> p.r, input.color),
       G = map(p -> p.g, input.color),
       B = map(p -> p.b, input.color),
+      RadialDensity= zeros(length(input.position))
    )
 else
   input = TypedTables.FlexTable(

@@ -81,5 +81,66 @@ julia examples/DevHarness.jl
 
 - Expose metadata as a global to Julia fn
 - Improve package management story, single scripts not very useful in isolation
-- add_dimension option
+
+### Performance Characteristics
+
+See the `/benchmark.sh` script for code to replicate. This is just an initial investigation into the relative performance
+of a filter written in Julia vs C++. I re-implemented the
+[Radial Density Filter](https://pdal.io/stages/filters.radialdensity.html) from PDAL in Julia:
+
+```julia
+#
+# Julia version of https://pdal.io/stages/filters.radialdensity.html
+#
+module TestModule
+
+  using RoamesGeometry
+  using AcceleratedArrays
+  using StructArrays
+  using StaticArrays
+  using TypedTables
+
+  # The radius to look in
+  radius = 5.0
+  factor = 1.0 / ((4.0 / 3.0) * 3.14159 * (radius * radius * radius))
+
+  function runFilter(ins)
+    # Create accelerated array for spatial lookups
+    positions = accelerate(
+      StructArray(SVector{3, Float64}(r.X, r.Y, r.Z) for r in ins),
+      GridIndex;
+      spacing = radius * 1.5 # TODO: What is a good ratio here?
+    )
+
+    # Per point operation
+    function find_nearby_points(point, points)
+      padded_sphere = RoamesGeometry.boundingbox(Sphere(point, radius))
+      return RoamesGeometry.findall(RoamesGeometry.in(padded_sphere), points)
+    end
+
+    for i in 1:length(positions)
+      position = positions[i]
+      ins[i] = merge(ins[i], (;RadialDensity=factor * length(find_nearby_points(position, positions))))
+    end
+
+    return ins;
+  end
+
+end # module
+```
+
+Then ran both filters against two different point cloud inputs; `autzen.las` (4.9k) and `1.2-with-color.las` (36k). The idea
+was to determine roughly the overhead of starting up the Julia interpreter vs the actual processing task by using different
+file sizes.
+
+#### Results
+
+|  | PDAL | Julia |  |  |
+|----------------|-------|-------|:-:|---|
+| 1.2-with-color | 0.35s | 3.09s |  |  |
+| Autzen | 0.19s | 3.49s |  |  |
+| Diff | 0.16s | 0.40s |  |  |
+
+From these results it seems that the startup overhead is dominating the performance difference.
+
 

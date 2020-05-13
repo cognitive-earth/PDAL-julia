@@ -3,7 +3,10 @@ module Test
   using RoamesGeometry
   using TypedTables
 
-  function go(file::String,dist::Float64)
+  radius = 50.0
+  factor = 1.0 / ((4.0 / 3.0) * 3.14159 * (radius * radius * radius))
+
+  function go(file::String)
     t = time()
     pc = RoamesGeometry.load_las(file, spacing=5.0)
     pc = Table(merge(columns(pc),(Num_Points_In_Radius=zeros(length(pc)),)))
@@ -12,9 +15,9 @@ module Test
     for run in 1:10
       t = time()
       for point in pc
-        padded_bbox= RoamesGeometry.pad(RoamesGeometry.boundingbox(point.position), dist / 2)
-        points_in_radius = RoamesGeometry.findall(RoamesGeometry.in(padded_bbox), pc.position)
-        point = merge(point, (; :Num_Points_In_Radius => length(points_in_radius)))
+        padded_sphere = RoamesGeometry.boundingbox(Sphere(point.position, radius))
+        points_in_radius = RoamesGeometry.findall(RoamesGeometry.in(padded_sphere), pc.position)
+        point = merge(point, (; :RadialDensity => factor * length(points_in_radius)))
       end
       println("Loop timing $(time()-t) $run")
     end
@@ -22,5 +25,4 @@ module Test
 
 end
 
-dist = 50.0
-Test.go(ARGS[1], dist)
+Test.go(ARGS[1])
