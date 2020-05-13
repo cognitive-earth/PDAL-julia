@@ -135,12 +135,13 @@ file sizes.
 
 #### Results
 
-|  | PDAL | Julia |  |  |
-|----------------|-------|-------|:-:|---|
-| 1.2-with-color | 0.35s | 3.09s |  |  |
-| Autzen | 0.19s | 3.49s |  |  |
-| Diff | 0.16s | 0.40s |  |  |
+|  | PDAL | Julia |
+|----------------|-------|-------|
+| 1.2-with-color | 0.35s | 3.09s |
+| Autzen | 0.19s | 3.49s |
+| Diff | 0.16s | -0.40s |
 
-From these results it seems that the startup overhead is dominating the performance difference.
+From these results it seems that the startup overhead is dominating the performance difference, to the point where the Julia
+filter actually got slower on the smaller input dataset.
 
 
