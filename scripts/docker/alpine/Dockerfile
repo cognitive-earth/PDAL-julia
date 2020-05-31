@@ -1,6 +1,8 @@
 FROM fredrikekre/julia-alpine:1.4.1 as julia_builder
 FROM pdal/alpinebase:latest as pdal_builder
 
+RUN apk add gdal-dev=3.1.0-r2
+
 ENV JULIA_PATH /usr/local/julia
 ENV PDAL_DRIVER_PATH /usr/local/lib
 ENV PDAL_JULIA_RUNTIME_PATH $JULIA_PATH/lib
